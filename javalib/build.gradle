@@ -1,0 +1,52 @@
+apply plugin: 'java-library'
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+afterEvaluate {
+    publishing {
+        publications {
+            mavenRelease(MavenPublication) {
+                // The following applies a component to this publication
+                // which results in publishing an app bundle.
+                from components.java
+
+                groupId = 'com.github.fengxiaocan'
+                artifactId = 'xDownload-java'
+                version = 'v1.0.0'
+            }
+        }
+    }
+}
+
+buildscript {
+    repositories {
+        jcenter()
+        flatDir {
+            dirs 'libs' //this way we can find the .aar file in libs folder
+        }
+    }
+    dependencies {
+        //5.0.0 需要gradle 5.0+ 才可构建
+        classpath 'com.github.jengelman.gradle.plugins:shadow:+'
+    }
+}
+
+shadowJar {
+//    manifest{
+//        //main 函数地址类
+//        attributes 'Main-Class': 'demo'
+//    }
+    baseName = 'javalib'
+    classifier = null
+    version = 'v1.2'
+//    dependencies {
+        //需要依赖的第三方lib
+        //include(dependency('baselib'))
+        //多个
+        //include(dependency('com.alibaba:fastjson:1.2.58'))
+//    }
+}
+
+dependencies {
+    api fileTree(dir: 'libs', include: ['*.jar'])
+}

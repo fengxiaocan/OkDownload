@@ -1,0 +1,64 @@
+apply plugin: 'com.android.library'
+apply plugin: 'maven-publish'
+afterEvaluate {
+    publishing {
+        publications {
+            mavenRelease(MavenPublication) {
+                // The following applies a component to this publication
+                // which results in publishing an app bundle.
+                from components.release
+
+                groupId = 'com.github.fengxiaocan'
+                artifactId = 'xDownload'
+                version = 'v1.0.0'
+            }
+        }
+    }
+}
+android {
+    compileSdkVersion 29
+    buildToolsVersion "29.0.3"
+
+
+    defaultConfig {
+        minSdkVersion 11
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+}
+
+dependencies {
+}
+
+//删除之前打出的包，默认将包打在'build/libs/'下
+task deleteOldJar(type: Delete){
+    delete 'build/libs/baselib.jar'
+}
+//把纯粹Java代码打包成Jar以供Java项目使用
+task makeJar(type: Jar){
+    //要打成的包的名字
+    baseName 'baselib'
+    //选取要打包的文件夹
+    from('build/intermediates/javac/debug/classes/com/x/down/')
+    //需要跟实际类的包名路径一样
+    into('com/x/down')
+    //排除在外的文件
+    exclude('BuildConfig.class',  'XDownload.class','config/Config.class','core/BaseRequest.class')
+    //排除以R$开头的文件
+    exclude{ it.name.startsWith('R$')}
+    exclude{ it.name.startsWith('AndroidSchedulers')}
+}
+//打包~
+makeJar.dependsOn(deleteOldJar, build)
