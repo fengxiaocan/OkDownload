@@ -22,12 +22,12 @@ public interface IConfig {
     IConfig saveDir(String dir);
 
     /**
-     * 同时进行http请求的最大任务数
+     * 同时进行Execute线程请求的最大任务数
      *
      * @param maxCount
      * @return
      */
-    IConfig requestMaxTaskCount(int maxCount);
+    IConfig maxExecuteTaskCount(int maxCount);
 
     /**
      * 允许同时下载的最大任务数量

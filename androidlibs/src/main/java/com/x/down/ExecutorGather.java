@@ -12,7 +12,7 @@ public final class ExecutorGather {
     private static final int SUBTASK_KEEP_ALIVE_TIME = 1;//子任务线程保活时间
 
     private static ThreadPoolExecutor downExecutor;
-    private static ThreadPoolExecutor httpExecutor;
+    private static ThreadPoolExecutor taskExecutor;
     private static ThreadPoolExecutor singleExecutor;
 
     /**
@@ -33,17 +33,17 @@ public final class ExecutorGather {
     }
 
 
-    public static synchronized ThreadPoolExecutor executorHttpQueue() {
-        if (httpExecutor == null) {
-            int maxCount = Config.config().getRequestMaxTaskCount();
-            httpExecutor = new ThreadPoolExecutor(maxCount,
+    public static synchronized ThreadPoolExecutor executorTaskQueue() {
+        if (taskExecutor == null) {
+            int maxCount = Config.config().getMaxExecuteTaskCount();
+            taskExecutor = new ThreadPoolExecutor(maxCount,
                     Integer.MAX_VALUE,
                     MAIN_TASK_KEEP_ALIVE_TIME,
                     TimeUnit.SECONDS,
                     new LinkedBlockingQueue<Runnable>());
-            httpExecutor.allowCoreThreadTimeOut(true);
+            taskExecutor.allowCoreThreadTimeOut(true);
         }
-        return httpExecutor;
+        return taskExecutor;
     }
 
     /**
@@ -86,11 +86,11 @@ public final class ExecutorGather {
     }
 
     public static synchronized void recyclerHttpQueue() {
-        if (httpExecutor != null) {
-            final ThreadPoolExecutor executor = httpExecutor;
+        if (taskExecutor != null) {
+            final ThreadPoolExecutor executor = taskExecutor;
             executor.shutdown();
         }
-        httpExecutor = null;
+        taskExecutor = null;
     }
 
     public static synchronized void recyclerSingleQueue() {

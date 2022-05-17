@@ -154,7 +154,7 @@ public final class XDownload {
     }
 
     public static ThreadPoolExecutor executorHttpQueue() {
-        return ExecutorGather.executorHttpQueue();
+        return ExecutorGather.executorTaskQueue();
     }
 
     /**

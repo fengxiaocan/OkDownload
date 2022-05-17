@@ -11,7 +11,7 @@ import java.util.List;
 
 public class XExecuteRequestQueue extends XExecuteRequest implements IExecuteQueue {
     protected List<Execute> queue;
-    protected int maxExecuteTaskCount = Config.config().getRequestMaxTaskCount();
+    protected int maxExecuteTaskCount = Config.config().getMaxExecuteTaskCount();
     protected OnExecuteQueueListener executeQueueListener;
 
     protected XExecuteRequestQueue(List<Execute> queue) {

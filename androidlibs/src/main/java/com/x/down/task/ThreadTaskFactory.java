@@ -43,7 +43,7 @@ public final class ThreadTaskFactory {
      */
     public static void createHttpRequestTask(XHttpRequest request) {
         HttpRequestTask requestTask = new HttpRequestTask(request);
-        Future future = ExecutorGather.executorHttpQueue().submit(requestTask);
+        Future future = ExecutorGather.executorTaskQueue().submit(requestTask);
         XDownload.get().addRequest(request.getTag(), requestTask);
         requestTask.setTaskFuture(future);
     }
@@ -67,7 +67,7 @@ public final class ThreadTaskFactory {
      */
     public static void createExecuteRequest(XExecuteRequest request) {
         ExecuteRequestTask requestTask = new ExecuteRequestTask(request);
-        Future future = ExecutorGather.executorHttpQueue().submit(requestTask);
+        Future future = ExecutorGather.executorTaskQueue().submit(requestTask);
         XDownload.get().addExecuteRequest(request.getTag(), requestTask);
         requestTask.setTaskFuture(future);
     }
@@ -79,7 +79,7 @@ public final class ThreadTaskFactory {
      */
     public static void createExecuteRequestQueue(XExecuteRequestQueue queue) {
         ExecuteQueueTask queueTask = new ExecuteQueueTask(queue);
-        Future future = ExecutorGather.executorHttpQueue().submit(queueTask);
+        Future future = ExecutorGather.executorTaskQueue().submit(queueTask);
         XDownload.get().addExecuteRequest(queue.getTag(), queueTask);
         queueTask.setTaskFuture(future);
     }
@@ -91,7 +91,7 @@ public final class ThreadTaskFactory {
      */
     public static void createExecuteRequestQueues(XExecuteRequestQueues queues) {
         ExecuteQueueTask queueTask = new ExecuteQueueTask(queues);
-        Future future = ExecutorGather.executorHttpQueue().submit(queueTask);
+        Future future = ExecutorGather.executorTaskQueue().submit(queueTask);
         XDownload.get().addRequest(queues.getTag(), queueTask);
         queueTask.setTaskFuture(future);
     }

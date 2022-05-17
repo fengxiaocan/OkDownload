@@ -5,7 +5,7 @@ public class XConfig implements IConfig {
     private String cacheDir;//默认缓存路径文件夹
     private String saveDir;//默认保存路径文件夹
     private String userAgent = "";//默认UA
-    private int requestMaxTaskCount = 30;//同时进行http请求的最大任务数
+    private int maxExecuteTaskCount = 30;//同时进行Execute线程的最大任务数
     private int downloadMaxTaskCount = 2;//同时下载最大的任务数
     private int downloadMultiThreadSize = 5;//默认下载的多线程数
     private int bufferedSize = 10 * 1024;//写文件buff大小，该数值大小不能小于2048，数值变小，下载速度会变慢,默认10kB
@@ -48,8 +48,8 @@ public class XConfig implements IConfig {
     }
 
     @Override
-    public XConfig requestMaxTaskCount(int maxSize) {
-        this.requestMaxTaskCount = maxSize;
+    public XConfig maxExecuteTaskCount(int maxCount) {
+        this.maxExecuteTaskCount = maxCount;
         return this;
     }
 
@@ -183,8 +183,8 @@ public class XConfig implements IConfig {
         return downloadMaxTaskCount;
     }
 
-    public int getRequestMaxTaskCount() {
-        return requestMaxTaskCount;
+    public int getMaxExecuteTaskCount() {
+        return maxExecuteTaskCount;
     }
 
     public int getDownloadMultiThreadSize() {
