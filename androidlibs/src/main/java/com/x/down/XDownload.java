@@ -11,6 +11,7 @@ import com.x.down.core.Execute;
 import com.x.down.core.HttpConnect;
 import com.x.down.core.HttpDownload;
 import com.x.down.core.IExecuteRequest;
+import com.x.down.core.LoopWork;
 import com.x.down.core.XDownloadRequest;
 import com.x.down.core.XExecuteRequest;
 import com.x.down.core.XExecuteRequestQueue;
@@ -48,6 +49,10 @@ public final class XDownload {
             xDownload = new XDownload();
         }
         return xDownload;
+    }
+
+    public static LoopWork loopWork(){
+        return LoopWork.get();
     }
 
     /**
@@ -153,7 +158,7 @@ public final class XDownload {
         return result.toString();
     }
 
-    public static ThreadPoolExecutor executorHttpQueue() {
+    public static ThreadPoolExecutor executorTaskQueue() {
         return ExecutorGather.executorTaskQueue();
     }
 
