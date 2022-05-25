@@ -2,6 +2,7 @@ package com.x.down.impl;
 
 import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
+import com.x.down.data.Headers;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.listener.OnDownloadListener;
@@ -26,7 +27,7 @@ public final class DownloadListenerDisposer
     }
 
     @Override
-    public void onPending(final IDownloadRequest request) {
+    public void onConnecting(final IDownloadRequest request, final Headers headers) {
         if (onConnectListener == null) {
             return;
         }
@@ -34,45 +35,11 @@ public final class DownloadListenerDisposer
             schedulers.schedule(new Runnable() {
                 @Override
                 public void run() {
-                    onConnectListener.onPending(request);
+                    onConnectListener.onConnecting(request, headers);
                 }
             });
         } else {
-            onConnectListener.onPending(request);
-        }
-    }
-
-    @Override
-    public void onStart(final IDownloadRequest request) {
-        if (onConnectListener == null) {
-            return;
-        }
-        if (schedulers != null) {
-            schedulers.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    onConnectListener.onStart(request);
-                }
-            });
-        } else {
-            onConnectListener.onStart(request);
-        }
-    }
-
-    @Override
-    public void onConnecting(final IDownloadRequest request) {
-        if (onConnectListener == null) {
-            return;
-        }
-        if (schedulers != null) {
-            schedulers.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    onConnectListener.onConnecting(request);
-                }
-            });
-        } else {
-            onConnectListener.onConnecting(request);
+            onConnectListener.onConnecting(request, headers);
         }
     }
 
@@ -146,7 +113,7 @@ public final class DownloadListenerDisposer
     }
 
     @Override
-    public void onFailure(final IDownloadRequest request) {
+    public void onFailure(final IDownloadRequest request, final Throwable exception) {
         if (onDownloadListener == null) {
             return;
         }
@@ -154,16 +121,16 @@ public final class DownloadListenerDisposer
             schedulers.schedule(new Runnable() {
                 @Override
                 public void run() {
-                    onDownloadListener.onFailure(request);
+                    onDownloadListener.onFailure(request, exception);
                 }
             });
         } else {
-            onDownloadListener.onFailure(request);
+            onDownloadListener.onFailure(request, exception);
         }
     }
 
     @Override
-    public void onProgress(final IDownloadRequest request, final float progress) {
+    public void onProgress(final IDownloadRequest request, final float progress, final long total, final long sofar) {
         if (onProgressListener == null) {
             return;
         }
@@ -171,11 +138,11 @@ public final class DownloadListenerDisposer
             schedulers.schedule(new Runnable() {
                 @Override
                 public void run() {
-                    onProgressListener.onProgress(request, progress);
+                    onProgressListener.onProgress(request, progress, total, sofar);
                 }
             });
         } else {
-            onProgressListener.onProgress(request, progress);
+            onProgressListener.onProgress(request, progress, total, sofar);
         }
     }
 

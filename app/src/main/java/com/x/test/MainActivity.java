@@ -9,7 +9,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.x.down.XDownload;
+import com.x.down.base.IDownloadRequest;
 import com.x.down.core.Execute;
+import com.x.down.listener.OnDownloadListener;
 import com.x.down.listener.OnExecuteQueueListener;
 
 import java.util.Random;
@@ -22,6 +24,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        XDownload.download("https://media6.smartstudy.com/ae/07/3997/2/dest.m3u8")
+                .setOnProgressListener((request, progress, totalLength, downloadedLength) -> {
+                    Log.e("noah", "onProgress:" + progress);
+                })
+                .setDownloadListener(new OnDownloadListener.IMPL() {
+                    @Override
+                    public void onComplete(IDownloadRequest request) {
+                        Log.e("noah", "onComplete:" + request.getFilePath());
+                    }
+
+                }).start();
+
 //        XDownload.execute(new Execute() {
 //            @Override
 //            public void run() throws Throwable {

@@ -3,15 +3,23 @@ package com.x.down.made;
 import java.io.Serializable;
 
 public class DownloaderInfo implements Serializable {
-    protected String contentType;
     protected long contentLength;//下载的文件长度
+    protected boolean isAccecp = false;//是否支持断点下载
 
     public DownloaderInfo() {
     }
 
-    public DownloaderInfo(String contentType, long contentLength) {
-        this.contentType = contentType;
+    public DownloaderInfo(long contentLength, boolean isAccecp) {
         this.contentLength = contentLength;
+        this.isAccecp = isAccecp;
+    }
+
+    public boolean isAccecp() {
+        return isAccecp;
+    }
+
+    public void setAccecp(boolean accecp) {
+        isAccecp = accecp;
     }
 
     public long getContentLength() {
@@ -22,11 +30,4 @@ public class DownloaderInfo implements Serializable {
         this.contentLength = contentLength;
     }
 
-    public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
 }

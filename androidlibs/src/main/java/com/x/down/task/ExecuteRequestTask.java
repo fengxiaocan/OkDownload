@@ -14,6 +14,7 @@ import java.util.concurrent.Future;
 class ExecuteRequestTask extends BaseExecuteRequest implements IExecute, IConnectRequest {
     protected final XExecuteRequest xExecuteRequest;
     protected final ExecuteListenerDisposer listenerDisposer;
+    final boolean isMulti;
     protected ExecuteQueueDisposer queueDisposer;
     protected Future taskFuture;
 
@@ -23,12 +24,17 @@ class ExecuteRequestTask extends BaseExecuteRequest implements IExecute, IConnec
                 request.getAutoRetryInterval()));
         this.listenerDisposer = new ExecuteListenerDisposer(request);
         this.xExecuteRequest = request;
-        listenerDisposer.onPending(this);
+        isMulti = false;
     }
 
     public ExecuteRequestTask(XExecuteRequest request, ExecuteQueueDisposer disposer) {
-        this(request);
+        super(new AutoRetryRecorder(request.isUseAutoRetry(),
+                request.getAutoRetryTimes(),
+                request.getAutoRetryInterval()));
+        this.listenerDisposer = new ExecuteListenerDisposer(request);
+        this.xExecuteRequest = request;
         this.queueDisposer = disposer;
+        isMulti = true;
     }
 
     public final void setTaskFuture(Future taskFuture) {
@@ -37,9 +43,13 @@ class ExecuteRequestTask extends BaseExecuteRequest implements IExecute, IConnec
 
     @Override
     public void run() {
-        listenerDisposer.onStart(this);
         super.run();
-        XDownload.get().removeExecuteRequest(xExecuteRequest.getTag());
+        if (isMulti) {
+            XDownload.get().removeMultiDownload(xExecuteRequest.getTag(), this);
+        } else {
+            XDownload.get().removeExecuteRequest(tag());
+        }
+        taskFuture = null;
     }
 
     @Override

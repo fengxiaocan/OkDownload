@@ -81,10 +81,6 @@ Java中使用方法:
 	    void onProgress(IDownloadRequest request,float progress);
 	
 	    //OnDownloadConnectListener:请求连接监听器
-	    //预备下载
-	    void onPending(IDownloadRequest request);
-	    //开始下载
-    	void onStart(IDownloadRequest request);
 	    //连接上请求
     	void onConnecting(IDownloadRequest request);
 	    //请求失败,code为返回码,error为服务器返回错误信息

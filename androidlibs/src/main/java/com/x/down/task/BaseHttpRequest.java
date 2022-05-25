@@ -39,13 +39,14 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
             String redirectsUrl = getRedirectsUrl(connection.getURL(), location);
             //断开原来的连接
             XDownUtils.disconnectHttp(connection);
+            //建立新的连接
             HttpURLConnection http = request.buildConnect(redirectsUrl);
             if (redirectsCookie != null) {
                 http.setRequestProperty("Cookie", redirectsCookie);
             }
             return http;
         }
-        return connection;
+        return null;
     }
 
     /**

@@ -8,7 +8,7 @@ public final class LoopWork {
     private static LoopWork sInstance;
     private final UUID LOCK = UUID.randomUUID();
     private Thread thread;
-    private volatile Queue<Work> task = new LinkedList();
+    private final Queue<Work> task = new LinkedList();
 
     private LoopWork() {
     }

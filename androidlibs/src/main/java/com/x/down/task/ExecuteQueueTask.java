@@ -48,6 +48,7 @@ final class ExecuteQueueTask implements Runnable, IConnectRequest {
             runQueueTask(pollFirst, thenQueue.getTag());
         }
         removeRequest();
+        taskFuture = null;
     }
 
     //执行队列任务请求

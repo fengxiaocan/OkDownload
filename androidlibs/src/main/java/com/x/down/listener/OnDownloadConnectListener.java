@@ -1,28 +1,16 @@
 package com.x.down.listener;
 
 import com.x.down.base.IDownloadRequest;
+import com.x.down.data.Headers;
 
 public interface OnDownloadConnectListener {
-    /**
-     * 正在预备状态,线程挂起或者准备开始
-     *
-     * @param request
-     */
-    void onPending(IDownloadRequest request);
-
-    /**
-     * 正在开始,线程开始执行
-     *
-     * @param request
-     */
-    void onStart(IDownloadRequest request);
 
     /**
      * 请求连接中
      *
      * @param request
      */
-    void onConnecting(IDownloadRequest request);
+    void onConnecting(IDownloadRequest request, Headers headers);
 
     /**
      * 请求出错了--所有重试已执行
@@ -45,20 +33,10 @@ public interface OnDownloadConnectListener {
      */
     void onRetry(IDownloadRequest request);
 
-    class IMPL implements OnDownloadConnectListener{
+    class IMPL implements OnDownloadConnectListener {
 
         @Override
-        public void onPending(IDownloadRequest request) {
-
-        }
-
-        @Override
-        public void onStart(IDownloadRequest request) {
-
-        }
-
-        @Override
-        public void onConnecting(IDownloadRequest request) {
+        public void onConnecting(IDownloadRequest request, Headers headers) {
 
         }
 

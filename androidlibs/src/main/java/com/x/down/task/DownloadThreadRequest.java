@@ -7,11 +7,9 @@ import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
 import com.x.down.impl.DownloadListenerDisposer;
-import com.x.down.impl.MultiDisposer;
 import com.x.down.made.AutoRetryRecorder;
 import com.x.down.made.DownloaderBlock;
 import com.x.down.made.DownloaderInfo;
-import com.x.down.tool.MimeType;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -30,7 +28,6 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
     protected ThreadPoolExecutor threadPoolExecutor;
     protected volatile Future taskFuture;
     protected volatile long sContentLength;
-    protected volatile String suffix;
 
     public DownloadThreadRequest(
             XDownloadRequest request) {
@@ -46,28 +43,29 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
     }
 
     @Override
-    protected void onConnecting(String contentType, long length) {
+    protected void onConnecting(HttpURLConnection http, long length) {
         sContentLength = length;
-        suffix = MimeType.getType(contentType);
-        listenerDisposer.onConnecting(this);
+        listenerDisposer.onConnecting(this, getHeaders(http));
     }
 
     @Override
     protected void onExecute() throws Throwable {
+        //是否支持断点下载
+        boolean acceptRanges = true;
         //获取之前的下载信息
-        if (sContentLength <= 0 || XDownUtils.isStringEmpty(suffix)) {
+        if (sContentLength <= 0) {
             DownloaderInfo info = InfoSerializeProxy.readDownloaderInfo(httpRequest);
             if (info != null) {
                 sContentLength = info.getContentLength();
-                if (info.getContentType() != null) {
-                    suffix = MimeType.getType(info.getContentType());
-                }
+                acceptRanges = info.isAccecp();
             }
         }
 
         //判断一下文件的长度是否获取得到
-        if (sContentLength <= 0 || suffix == null) {
+        if (sContentLength <= 0) {
             HttpURLConnection http = getDownloaderLong(httpRequest);
+            //是否支持断点下载
+            acceptRanges = isAcceptRanges(http);
             //获取文件类型后缀
             final int code = http.getResponseCode();
             if (!isSuccess(code)) {
@@ -99,7 +97,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         }
 
         //判断执行多线程下载还是单线程下载
-        if (sContentLength > 0 && httpRequest.isUseMultiThread()) {
+        if (acceptRanges && sContentLength > 0 && httpRequest.isUseMultiThread()) {
             multiThreadRun(sContentLength);
         } else {
             //独立下载
@@ -115,6 +113,12 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         }
     }
 
+    @Override
+    public void run() {
+        super.run();
+        taskFuture = null;
+        XDownload.get().removeDownload(tag());
+    }
 
     @Override
     protected void onRetry() {
@@ -123,7 +127,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
 
     @Override
     protected void onError(Throwable e) {
-        listenerDisposer.onFailure(this);
+        listenerDisposer.onFailure(this, e);
     }
 
     @Override
@@ -134,9 +138,9 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
     /**
      * 多线程下载
      *
-     * @param contentLength
+     * @param totalLength
      */
-    private void multiThreadRun(final long contentLength) {
+    private void multiThreadRun(final long totalLength) {
         if (threadPoolExecutor != null) {
             //isShutDown：当调用shutdown()或shutdownNow()方法后返回为true。 
             //isTerminated：当调用shutdown()方法后，并且所有提交的任务完成后返回为true;
@@ -163,7 +167,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         DownloaderBlock block = InfoSerializeProxy.readDownloaderBlock(httpRequest);
 
         if (block == null) {
-            block = createBlock(contentLength);
+            block = createBlock(totalLength);
             InfoSerializeProxy.writeDownloaderBlock(httpRequest, block);
         }
 
@@ -175,17 +179,18 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         threadPoolExecutor = ExecutorGather.newSubTaskQueue(httpRequest.getDownloadMultiThreadSize());
 
         final CountDownLatch countDownLatch = new CountDownLatch(threadCount);//计数器
-        final MultiDisposer disposer = new MultiDisposer(httpRequest, countDownLatch, threadCount, listenerDisposer);
+        final MultiDownloadDisposer disposer = new MultiDownloadDisposer(httpRequest, countDownLatch, threadCount, listenerDisposer, totalLength);
 
         synchronized (Object.class) {
             long start = 0, end = -1;
             final String filePath = getFilePath();
+
             for (int index = 0; index < threadCount; index++) {
                 start = end + 1;
                 final long fileLength;
                 if (index == threadCount - 1) {
-                    end = contentLength;
-                    fileLength = contentLength - start;
+                    end = totalLength;
+                    fileLength = totalLength - start;
                 } else {
                     end = start + blockLength;
                     fileLength = blockLength + 1;
@@ -193,14 +198,14 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
                 //保存的临时文件
                 File file = new File(cacheDir, httpRequest.getIdentifier() + "_temp_" + index);
                 //任务
-                MultiDownloadThreadTask task = new MultiDownloadThreadTask(httpRequest, file, filePath, autoRetryRecorder, index, contentLength, fileLength, start, end, disposer);
+                MultiDownloadThreadTask task = new MultiDownloadThreadTask(httpRequest, file, filePath,
+                        autoRetryRecorder, fileLength, start, end, disposer);
 
                 disposer.addTask(task);
                 Future<?> submit = threadPoolExecutor.submit(task);
                 XDownload.get().addDownload(httpRequest.getTag(), task);
                 task.setTaskFuture(submit);
             }
-            disposer.onProgress(this, contentLength, 0);
         }
         //等待下载完成
         try {
@@ -276,28 +281,11 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
     }
 
     protected File getFile() {
-        File saveFile = httpRequest.getSaveFile();
-        if (saveFile != null) {
-            return saveFile;
-        }
-        if (suffix != null) {
-            return new File(httpRequest.getSaveDir(), httpRequest.getSaveName() + suffix);
-        }
-        return new File(httpRequest.getSaveDir(), httpRequest.getSaveName());
+        return httpRequest.getSaveFile();
     }
 
     @Override
     public String getFilePath() {
         return getFile().getAbsolutePath();
-    }
-
-    @Override
-    public long getTotalLength() {
-        return sContentLength;
-    }
-
-    @Override
-    public long getSofarLength() {
-        return 0;
     }
 }

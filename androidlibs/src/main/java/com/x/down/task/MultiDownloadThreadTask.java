@@ -1,10 +1,10 @@
 package com.x.down.task;
 
 
+import com.x.down.XDownload;
 import com.x.down.base.IConnectRequest;
-import com.x.down.base.MultiDownloadTask;
+import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
-import com.x.down.impl.MultiDisposer;
 import com.x.down.made.AutoRetryRecorder;
 import com.x.down.tool.XDownUtils;
 
@@ -13,40 +13,34 @@ import java.io.FileOutputStream;
 import java.net.HttpURLConnection;
 import java.util.concurrent.Future;
 
-final class MultiDownloadThreadTask extends HttpDownloadRequest implements MultiDownloadTask, IConnectRequest {
-    private final MultiDisposer multiDisposer;
+final class MultiDownloadThreadTask extends HttpDownloadRequest implements MultiDownloadTask, IDownloadRequest, IConnectRequest {
+    private final MultiDownloadDisposer multiDisposer;
     private final XDownloadRequest request;
     private final File tempFile;
     private final String saveFile;
-    private final int index;
-    private final long contentLength;
     private final long fileLength;
     private final long blockStart;
     private final long blockEnd;
     private volatile Future taskFuture;
+    private volatile long sofar = 0;
 
     public MultiDownloadThreadTask(
             XDownloadRequest request,
             File tempFile,
             String saveFile,
             AutoRetryRecorder recorder,
-            int index,
-            long contentLength,
             long fileLength,
             long blockStart,
             long blockEnd,
-            MultiDisposer listener) {
+            MultiDownloadDisposer listener) {
         super(recorder, request.getBufferedSize());
         this.request = request;
         this.tempFile = tempFile;
         this.saveFile = saveFile;
-        this.index = index;
-        this.contentLength = contentLength;
         this.fileLength = fileLength;
         this.blockStart = blockStart;
         this.blockEnd = blockEnd;
         this.multiDisposer = listener;
-        multiDisposer.onPending(this);
     }
 
     public final void setTaskFuture(Future taskFuture) {
@@ -55,8 +49,10 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
 
     @Override
     public void run() {
-        multiDisposer.onStart(this);
         super.run();
+        multiDisposer.removeTask(this);
+        XDownload.get().removeMultiDownload(tag(), this);
+        taskFuture = null;
     }
 
     @Override
@@ -64,25 +60,29 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
         //是否使用断点续传
         final long start;
         if (tempFile.exists()) {
-            final long fileLenght = tempFile.length();
-            if (fileLenght == fileLength) {
+            final long fileSize = tempFile.length();
+            if (fileSize == fileLength) {
+                sofar = fileLength;
                 multiDisposer.onComplete(this);
                 return;
-            } else if (fileLenght > fileLength) {
+            } else if (fileSize > fileLength) {
                 tempFile.delete();
                 start = blockStart;
+                sofar = 0;
             } else {
-                start = blockStart + fileLenght;
+                start = blockStart + fileSize;
+                sofar = fileSize;
             }
         } else {
             start = blockStart;
+            sofar = 0;
         }
 
         HttpURLConnection http = request.buildConnect();
         http.setRequestProperty("Range", XDownUtils.jsonString("bytes=", start, "-", blockEnd));
         http.connect();
 
-        multiDisposer.onConnecting(this);
+        multiDisposer.onConnecting(this, getHeaders(http));
 
         int responseCode = http.getResponseCode();
 
@@ -96,6 +96,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
             if (!readInputStream(http.getInputStream(), os)) {
                 return;
             }
+            sofar = fileLength;
             multiDisposer.onComplete(this);
 
             XDownUtils.disconnectHttp(http);
@@ -115,7 +116,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
 
     @Override
     protected void onError(Throwable e) {
-        multiDisposer.onFailure(this);
+        multiDisposer.onFailure(this, e);
     }
 
     @Override
@@ -125,27 +126,13 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
 
     @Override
     protected void onProgress(int length) {
-        multiDisposer.onProgress(this, contentLength, length);
-    }
-
-    @Override
-    public int blockIndex() {
-        return index;
+        sofar += length;
+        multiDisposer.onProgress(this, length);
     }
 
     @Override
     public String getFilePath() {
         return saveFile;
-    }
-
-    @Override
-    public long getTotalLength() {
-        return contentLength;
-    }
-
-    @Override
-    public long getSofarLength() {
-        return multiDisposer.getSofarLength();
     }
 
     @Override
@@ -178,18 +165,8 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
     }
 
     @Override
-    public long blockStart() {
-        return blockStart;
-    }
-
-    @Override
-    public long blockEnd() {
-        return blockEnd;
-    }
-
-    @Override
-    public long blockSofarLength() {
-        return tempFile.length();
+    public long blockSofar() {
+        return sofar;
     }
 
     @Override

@@ -8,9 +8,9 @@ import com.x.down.core.XDownloadRequest;
 import com.x.down.impl.DownloadListenerDisposer;
 import com.x.down.impl.ProgressDisposer;
 import com.x.down.impl.SpeedDisposer;
+import com.x.down.listener.OnMergeFileListener;
 import com.x.down.made.AutoRetryRecorder;
 import com.x.down.made.DownloaderInfo;
-import com.x.down.tool.MimeType;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -25,25 +25,23 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
     private final SpeedDisposer speedDisposer;
     private final File cacheFile;
     private final XDownloadRequest request;
-    private volatile long sContentLength;
+    private volatile long sTotalLength;
     private volatile long sSofarLength = 0;
     private volatile Future taskFuture;
     private volatile int speedLength = 0;
-    private volatile String suffix;
 
     public SingleDownloadThreadTask(XDownloadRequest request, DownloadListenerDisposer listener, long contentLength) {
         super(new AutoRetryRecorder(request.isUseAutoRetry(),
                 request.getAutoRetryTimes(),
                 request.getAutoRetryInterval()), request.getBufferedSize());
         this.request = request;
-        this.sContentLength = contentLength;
+        this.sTotalLength = contentLength;
         this.listenerDisposer = listener;
         this.progressDisposer = new ProgressDisposer(request.isIgnoredProgress(),
                 request.getUpdateProgressTimes(),
                 listener);
         this.speedDisposer = new SpeedDisposer(request.isIgnoredSpeed(), request.getUpdateSpeedTimes(), listener);
         this.cacheFile = XDownUtils.getTempFile(request);
-        this.listenerDisposer.onPending(this);
     }
 
     public final void setTaskFuture(Future taskFuture) {
@@ -57,8 +55,8 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
      */
     public boolean checkComplete() {
         File file = getFile();
-        if (sContentLength > 0 && file.exists()) {
-            if (file.length() == sContentLength) {
+        if (sTotalLength > 0 && file.exists()) {
+            if (file.length() == sTotalLength) {
                 listenerDisposer.onComplete(this);
                 return true;
             } else {
@@ -70,16 +68,15 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
 
     @Override
     public void run() {
-        listenerDisposer.onStart(this);
         super.run();
         XDownload.get().removeDownload(request.getTag());
+        taskFuture = null;
     }
 
     @Override
-    protected void onConnecting(String contentType, long length) {
-        sContentLength = length;
-        suffix = MimeType.getType(contentType);
-        listenerDisposer.onConnecting(this);
+    protected void onConnecting(HttpURLConnection http, long length) {
+        sTotalLength = length;
+        listenerDisposer.onConnecting(this, getHeaders(http));
     }
 
     @Override
@@ -88,22 +85,17 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
             return;
         }
         HttpURLConnection http = null;
-
-        if (sContentLength <= 0 || XDownUtils.isStringEmpty(suffix)) {
+        if (sTotalLength <= 0) {
             DownloaderInfo info = InfoSerializeProxy.readDownloaderInfo(request);
             if (info != null) {
-                sContentLength = info.getContentLength();
-                if (info.getContentType() != null) {
-                    suffix = MimeType.getType(info.getContentType());
-                }
+                sTotalLength = info.getContentLength();
             }
         }
 
-        if (sContentLength <= 0 || XDownUtils.isStringEmpty(suffix)) {
+        if (sTotalLength <= 0) {
             //重新获取下载长度
             http = getDownloaderLong(request);
-            //获取文件类型后缀
-
+            //获取是否支持断点下载
             final int code = http.getResponseCode();
             if (!isSuccess(code)) {
                 //获取错误信息
@@ -125,17 +117,18 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
 
         //判断之前下载的文件是否存在或完成
         if (cacheFile.exists()) {
-            if (sContentLength > 0) {
-                if (cacheFile.length() == sContentLength) {
+
+            if (sTotalLength > 0) {
+                if (cacheFile.length() == sTotalLength) {
                     //长度一致
-                    sSofarLength = sContentLength;
+                    sSofarLength = sTotalLength;
                     //复制临时文件到保存文件中
-                    copyFile(cacheFile, getFile(), true);
+                    cacheFile.renameTo(getFile());
                     //下载完成
                     speedLength = 0;
                     listenerDisposer.onComplete(this);
                     return;
-                } else if (cacheFile.length() > sContentLength) {
+                } else if (cacheFile.length() > sTotalLength) {
                     //长度大了
                     cacheFile.delete();
                     sSofarLength = 0;
@@ -165,7 +158,8 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
             if (http == null) {
                 http = request.buildConnect();
                 final long start = sSofarLength;
-                http.setRequestProperty("Range", XDownUtils.jsonString("bytes=", start, "-", sContentLength));
+                //判断是否支持断点下载
+                http.setRequestProperty("Range", XDownUtils.jsonString("bytes=", start, "-", sTotalLength));
                 //重新连接
                 http.connect();
             }
@@ -184,6 +178,9 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
             responseCode = http.getResponseCode();
         }
 
+        //是否支持断点下载
+        boolean acceptRanges = isAcceptRanges(http);
+
         //重新判断
         if (!isSuccess(responseCode)) {
             onResponseError(http, responseCode);
@@ -191,19 +188,23 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         }
 
         //重新下载
-        if (!downReadInput(http, isBreakPointResume)) {
+        if (!downReadInput(http, acceptRanges && isBreakPointResume)) {
             return;
         }
         //复制下载完成的文件
-        copyFile(cacheFile, getFile(), true);
+        cacheFile.renameTo(getFile());
 
         //处理最后的进度
         if (!progressDisposer.isIgnoredProgress()) {
-            listenerDisposer.onProgress(this, 1);
+            listenerDisposer.onProgress(this, 1, sTotalLength, sTotalLength);
         }
         //处理最后的速度
         if (!speedDisposer.isIgnoredSpeed()) {
             speedDisposer.onSpeed(this, speedLength);
+        }
+        OnMergeFileListener listener = request.getOnMegerFileListener();
+        if (listener != null) {
+            listener.onMerge(getFile());
         }
         speedLength = 0;
         //完成回调
@@ -211,6 +212,9 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
     }
 
     private boolean downReadInput(HttpURLConnection http, boolean append) throws IOException {
+        if (!append) {
+            sSofarLength = 0;
+        }
         try {
             FileOutputStream os = new FileOutputStream(cacheFile, append);
             return readInputStream(http.getInputStream(), os);
@@ -241,7 +245,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
 
     @Override
     protected void onError(Throwable e) {
-        listenerDisposer.onFailure(this);
+        listenerDisposer.onFailure(this, e);
     }
 
     @Override
@@ -254,7 +258,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         sSofarLength += length;
         speedLength += length;
         if (progressDisposer.isCallProgress()) {
-            progressDisposer.onProgress(this, getTotalLength(), getSofarLength());
+            progressDisposer.onProgress(this, sTotalLength, sSofarLength);
         }
         if (speedDisposer.isCallSpeed()) {
             speedDisposer.onSpeed(this, speedLength);
@@ -263,29 +267,12 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
     }
 
     private File getFile() {
-        File saveFile = request.getSaveFile();
-        if (saveFile != null) {
-            return saveFile;
-        }
-        if (suffix != null) {
-            return new File(request.getSaveDir(), request.getSaveName() + suffix);
-        }
-        return new File(request.getSaveDir(), request.getSaveName());
+        return request.getSaveFile();
     }
 
     @Override
     public String getFilePath() {
         return getFile().getAbsolutePath();
-    }
-
-    @Override
-    public long getTotalLength() {
-        return sContentLength;
-    }
-
-    @Override
-    public long getSofarLength() {
-        return sSofarLength;
     }
 
     @Override

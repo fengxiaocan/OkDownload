@@ -27,7 +27,7 @@ public class XExecuteRequest implements IExecuteRequest {
 
     @Override
     public String getTag() {
-        if (XDownUtils.isStringEmpty(tag)) {
+        if (XDownUtils.isEmpty(tag)) {
             tag = UUID.randomUUID().toString();
         }
         return tag;

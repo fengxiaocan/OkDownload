@@ -190,6 +190,15 @@ public final class XDownload {
         return downloadMap.remove(tag);
     }
 
+    public synchronized IConnectRequest removeMultiDownload(String tag, IConnectRequest request) {
+        if (tag == null) return null;
+        List<IConnectRequest> requestList = downloadMap.get(tag);
+        if (requestList != null) {
+            requestList.remove(request);
+        }
+        return null;
+    }
+
     /**
      * 取消请求
      *

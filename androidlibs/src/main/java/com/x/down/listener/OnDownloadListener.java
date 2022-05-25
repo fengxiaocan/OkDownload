@@ -15,9 +15,9 @@ public interface OnDownloadListener {
      *
      * @param request
      */
-    void onFailure(IDownloadRequest request);
+    void onFailure(IDownloadRequest request, Throwable exception);
 
-    class IMPL implements OnDownloadListener{
+    class IMPL implements OnDownloadListener {
 
         @Override
         public void onComplete(IDownloadRequest request) {
@@ -25,7 +25,7 @@ public interface OnDownloadListener {
         }
 
         @Override
-        public void onFailure(IDownloadRequest request) {
+        public void onFailure(IDownloadRequest request, Throwable exception) {
 
         }
     }

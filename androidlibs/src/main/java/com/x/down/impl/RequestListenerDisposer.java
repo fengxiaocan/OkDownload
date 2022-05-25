@@ -2,6 +2,7 @@ package com.x.down.impl;
 
 import com.x.down.base.IRequest;
 import com.x.down.core.XHttpRequest;
+import com.x.down.data.Headers;
 import com.x.down.data.Response;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnConnectListener;
@@ -18,25 +19,9 @@ public final class RequestListenerDisposer implements OnConnectListener, OnRespo
         this.onConnectListener = xHttpRequest.getOnConnectListeners();
     }
 
-    @Override
-    public void onPending(final IRequest request) {
-        if (onConnectListener == null) {
-            return;
-        }
-        if (schedulers != null) {
-            schedulers.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    onConnectListener.onConnecting(request);
-                }
-            });
-        } else {
-            onConnectListener.onConnecting(request);
-        }
-    }
 
     @Override
-    public void onStart(final IRequest request) {
+    public void onConnecting(final IRequest request, final Headers headers) {
         if (onConnectListener == null) {
             return;
         }
@@ -44,28 +29,11 @@ public final class RequestListenerDisposer implements OnConnectListener, OnRespo
             schedulers.schedule(new Runnable() {
                 @Override
                 public void run() {
-                    onConnectListener.onStart(request);
+                    onConnectListener.onConnecting(request, headers);
                 }
             });
         } else {
-            onConnectListener.onStart(request);
-        }
-    }
-
-    @Override
-    public void onConnecting(final IRequest request) {
-        if (onConnectListener == null) {
-            return;
-        }
-        if (schedulers != null) {
-            schedulers.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    onConnectListener.onConnecting(request);
-                }
-            });
-        } else {
-            onConnectListener.onConnecting(request);
+            onConnectListener.onConnecting(request, headers);
         }
     }
 

@@ -8,6 +8,7 @@ import com.x.down.data.Params;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.listener.OnDownloadListener;
+import com.x.down.listener.OnMergeFileListener;
 import com.x.down.listener.OnProgressListener;
 import com.x.down.listener.OnSpeedListener;
 import com.x.down.listener.SSLCertificateFactory;
@@ -21,13 +22,15 @@ import java.net.URL;
 import javax.net.ssl.HttpsURLConnection;
 
 public class XDownloadRequest extends BaseRequest implements HttpDownload, BuilderURLConnection {
+    //文件的后缀名
+    protected final String fileSuffix;
+    protected final String urlName;
     //文件名
     protected String saveName;
     //文件保存位置
     protected String saveDir = Config.config().getSaveDir();
     //文件缓存目录
     protected String cacheDir = Config.config().getCacheDir();
-
     //写文件buff大小，该数值大小不能小于2048，数值变小，下载速度会变慢,默认8kB
     protected int bufferedSize = Config.config().getBufferedSize();
     //默认下载的多线程数
@@ -56,41 +59,53 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
     protected OnProgressListener onProgressListener;
     //下载速度监听
     protected OnSpeedListener onSpeedListener;
+    //文件合并监听
+    protected OnMergeFileListener onMergeFileListener;
 
     protected XDownloadRequest(String baseUrl) {
         super(baseUrl);
+        urlName = XDownUtils.getUrlName(getBaseUrl());
+        fileSuffix = XDownUtils.getSuffixName(getUrlName()).toLowerCase();
     }
 
     public static XDownloadRequest with(String url) {
         return new XDownloadRequest(url);
     }
 
+    public String getUrlName() {
+        return urlName;
+    }
+
+    public String getFileSuffix() {
+        return fileSuffix;
+    }
+
     public File getSaveFile() {
-        if (saveName == null) {
-            return null;
-        }
-        return new File(saveDir, saveName);
+        return new File(getSaveDir(), getSaveName());
     }
 
     public String getSaveName() {
-        if (saveName != null) {
-            return saveName;
-        } else {
+        if (XDownUtils.isEmpty(saveName)) {
             AcquireNameInterceptor interceptor = Config.config().getAcquireNameInterceptor();
             if (interceptor != null) {
-                return interceptor.acquire(getConnectUrl());
-            } else {
-                return getIdentifier();
+                saveName = interceptor.acquire(getConnectUrl());
+            }
+            if (XDownUtils.isEmpty(saveName)) {
+                saveName = getIdentifier() + "_" + getUrlName();
             }
         }
+        return saveName;
     }
 
     public String getSaveDir() {
+        if (XDownUtils.isEmpty(saveDir)) {
+            return Config.config().getSaveDir();
+        }
         return saveDir;
     }
 
     public String getCacheDir() {
-        if (XDownUtils.isStringEmpty(cacheDir)) {
+        if (XDownUtils.isEmpty(cacheDir)) {
             return Config.config().getCacheDir();
         }
         return cacheDir;
@@ -184,6 +199,12 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
     @Override
     public HttpDownload setOnSpeedListener(OnSpeedListener listener) {
         onSpeedListener = listener;
+        return this;
+    }
+
+    @Override
+    public HttpDownload setOnMegerFileListener(OnMergeFileListener listener) {
+        onMergeFileListener = listener;
         return this;
     }
 
@@ -364,6 +385,10 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
 
     public OnSpeedListener getOnSpeedListener() {
         return onSpeedListener;
+    }
+
+    public OnMergeFileListener getOnMegerFileListener() {
+        return onMergeFileListener;
     }
 
     @Override

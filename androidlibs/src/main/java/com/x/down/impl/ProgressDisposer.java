@@ -29,10 +29,17 @@ public final class ProgressDisposer {
         }
     }
 
-    public void onProgress(IDownloadRequest request, final long totalLength, final long sofarLength) {
-        if (totalLength > 0) {
+    public void onProgress(IDownloadRequest request, final long total, final long sofar) {
+        if (total > 0) {
             lastTime = System.currentTimeMillis();
-            disposer.onProgress(request, sofarLength * 1F / totalLength);
+            disposer.onProgress(request, sofar * 1F / total, total, sofar);
+        }
+    }
+
+    public void onProgress(IDownloadRequest request, float progress, final long total, final long sofar) {
+        if (total > 0) {
+            lastTime = System.currentTimeMillis();
+            disposer.onProgress(request, progress, total, sofar);
         }
     }
 }

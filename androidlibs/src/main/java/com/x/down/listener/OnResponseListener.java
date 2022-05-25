@@ -8,7 +8,7 @@ public interface OnResponseListener {
 
     void onError(IRequest request, Throwable exception);
 
-    class IMPL implements OnResponseListener{
+    class IMPL implements OnResponseListener {
 
         @Override
         public void onResponse(IRequest request, Response response) {

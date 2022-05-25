@@ -41,7 +41,7 @@ public final class XDownload {
     }
 
     public static IConfig init(Context context) {
-        return init(context, "xdownload");
+        return init(context, "xDownload");
     }
 
     public static synchronized XDownload get() {
@@ -51,7 +51,7 @@ public final class XDownload {
         return xDownload;
     }
 
-    public static LoopWork loopWork(){
+    public static LoopWork loopWork() {
         return LoopWork.get();
     }
 
@@ -228,6 +228,15 @@ public final class XDownload {
     public synchronized List<IConnectRequest> removeDownload(String tag) {
         if (tag == null) return null;
         return downloadMap.remove(tag);
+    }
+
+    public synchronized IConnectRequest removeMultiDownload(String tag, IConnectRequest request) {
+        if (tag == null) return null;
+        List<IConnectRequest> requestList = downloadMap.get(tag);
+        if (requestList != null) {
+            requestList.remove(request);
+        }
+        return null;
     }
 
     /**

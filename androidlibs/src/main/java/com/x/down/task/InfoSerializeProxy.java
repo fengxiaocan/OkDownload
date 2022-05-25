@@ -1,11 +1,9 @@
 package com.x.down.task;
 
 import com.x.down.core.XDownloadRequest;
+import com.x.down.m3u8.M3U8Info;
 import com.x.down.made.DownloaderBlock;
 import com.x.down.made.DownloaderInfo;
-import com.x.down.made.M3u8DownloaderBlock;
-import com.x.down.made.M3u8DownloaderBlockInfo;
-import com.x.down.made.M3u8DownloaderInfo;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -13,6 +11,7 @@ import java.io.File;
 class InfoSerializeProxy {
     private static final String INFO_NAME = "MEMORY";
     private static final String BLOCK_NAME = "BLOCK";
+    private static final String M3U8_INFO_NAME = "M3U8_BLOCK";
 
     /**
      * 保存下载的长度以及文件类型
@@ -35,9 +34,7 @@ class InfoSerializeProxy {
         File cacheDir = XDownUtils.getTempCacheDir(request);
         if (cacheDir.exists()) {
             File file = new File(cacheDir, INFO_NAME);
-            if (file.exists()) {
-                return XDownUtils.readObject(file);
-            }
+            return XDownUtils.readObject(file);
         }
         return null;
     }
@@ -61,9 +58,7 @@ class InfoSerializeProxy {
         File cacheDir = XDownUtils.getTempCacheDir(request);
         if (cacheDir.exists()) {
             File file = new File(cacheDir, BLOCK_NAME);
-            if (file.exists()) {
-                return XDownUtils.readObject(file);
-            }
+            return XDownUtils.readObject(file);
         }
         return null;
     }
@@ -71,51 +66,33 @@ class InfoSerializeProxy {
     /**
      * 保存m3u8的信息
      */
-    public static void writeM3u8DownloadInfo(XDownloadRequest request, M3u8DownloaderInfo block) {
+    public static void deleteM3u8Info(XDownloadRequest request) {
         File tempCacheDir = XDownUtils.getTempCacheDir(request);
-        File file = new File(tempCacheDir, BLOCK_NAME);
-        XDownUtils.writeObject(file, block);
+        new File(tempCacheDir, M3U8_INFO_NAME).delete();
+    }
+
+    /**
+     * 保存m3u8的信息
+     */
+    public static void writeM3u8Info(XDownloadRequest request, M3U8Info block) {
+        File tempCacheDir = XDownUtils.getTempCacheDir(request);
+        File file = new File(tempCacheDir, M3U8_INFO_NAME);
+        synchronized (Object.class) {
+            XDownUtils.writeObject(file, block);
+        }
     }
 
     /**
      * 获取m3u8的信息
      */
-    public static M3u8DownloaderInfo readM3u8DownloadInfo(XDownloadRequest request) {
-        File cacheDir = XDownUtils.getTempCacheDir(request);
-        if (cacheDir.exists()) {
-            File file = new File(cacheDir, BLOCK_NAME);
-            if (file.exists()) {
+    public static M3U8Info readM3u8Info(XDownloadRequest request) {
+        synchronized (Object.class) {
+            File cacheDir = XDownUtils.getTempCacheDir(request);
+            if (cacheDir.exists()) {
+                File file = new File(cacheDir, M3U8_INFO_NAME);
                 return XDownUtils.readObject(file);
             }
+            return null;
         }
-        return null;
-    }
-
-    /**
-     * 保存m3u8片段的信息
-     */
-    public static void writeM3u8DownloaderBlock(XDownloadRequest request, M3u8DownloaderBlock block, long contentLength) {
-        File tempCacheDir = XDownUtils.getTempCacheDir(request);
-        String md5 = XDownUtils.getMd5(block.getUrl());
-        File file = new File(tempCacheDir, md5 + ".m3u8block");
-        XDownUtils.writeObject(file, new M3u8DownloaderBlockInfo(block, contentLength));
-    }
-
-    /**
-     * 获取m3u8片段的信息
-     */
-    public static long readM3u8DownloaderBlock(XDownloadRequest request, M3u8DownloaderBlock block) {
-        File tempCacheDir = XDownUtils.getTempCacheDir(request);
-        if (tempCacheDir.exists()) {
-            String md5 = XDownUtils.getMd5(block.getUrl());
-            File file = new File(tempCacheDir, md5 + ".m3u8block");
-            if (file.exists()) {
-                M3u8DownloaderBlockInfo info = XDownUtils.readObject(file);
-                if (info != null) {
-                    return info.getContentLength();
-                }
-            }
-        }
-        return 0;
     }
 }

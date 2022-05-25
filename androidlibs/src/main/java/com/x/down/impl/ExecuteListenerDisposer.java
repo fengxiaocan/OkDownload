@@ -15,40 +15,6 @@ public final class ExecuteListenerDisposer implements OnExecuteListener {
     }
 
     @Override
-    public void onPending(final IExecute request) {
-        if (onExecuteListener == null) {
-            return;
-        }
-        if (schedulers != null) {
-            schedulers.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    onExecuteListener.onPending(request);
-                }
-            });
-        } else {
-            onExecuteListener.onPending(request);
-        }
-    }
-
-    @Override
-    public void onStart(final IExecute request) {
-        if (onExecuteListener == null) {
-            return;
-        }
-        if (schedulers != null) {
-            schedulers.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    onExecuteListener.onStart(request);
-                }
-            });
-        } else {
-            onExecuteListener.onStart(request);
-        }
-    }
-
-    @Override
     public void onCancel(final IExecute request) {
         if (onExecuteListener == null) {
             return;

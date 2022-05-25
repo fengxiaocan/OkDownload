@@ -118,6 +118,9 @@ public class XDownUtils {
      * @return
      */
     public static String getUrlName(final String url) {
+        if (url == null || "".equals(url)) {
+            return "";
+        }
         final int index1 = url.indexOf("?");
         final String subUrl;
         if (index1 > 0) {
@@ -143,10 +146,6 @@ public class XDownUtils {
         }
     }
 
-    public static boolean isStringEmpty(String content) {
-        return content == null || content.equals("");
-    }
-
     public static boolean writeObject(File file, Object obj) {
         ObjectOutputStream stream = null;
         try {
@@ -162,7 +161,25 @@ public class XDownUtils {
         }
     }
 
+    public static boolean writeFile(File file, byte[] arrays) {
+        FileOutputStream stream = null;
+        try {
+            stream = new FileOutputStream(file, false);
+            stream.write(arrays);
+            stream.flush();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            XDownUtils.closeIo(stream);
+        }
+    }
+
     public static <T> T readObject(File file) {
+        if (!file.exists()) {
+            return null;
+        }
         ObjectInputStream stream = null;
         try {
             stream = new ObjectInputStream(new FileInputStream(file));
@@ -176,7 +193,6 @@ public class XDownUtils {
         }
     }
 
-
     /**
      * 保存临时文件的文件夹
      *
@@ -187,7 +203,7 @@ public class XDownUtils {
         String saveDir = request.getCacheDir();
         //获取MD5
         String md5 = request.getIdentifier();
-        File dir = new File(saveDir, md5);
+        File dir = new File(saveDir, md5 + "_temp");
         dir.mkdirs();
         return dir;
     }
@@ -199,7 +215,7 @@ public class XDownUtils {
      */
     public static File getTempFile(XDownloadRequest request) {
         //没有设置保存文件名
-        return new File(request.getCacheDir(), request.getIdentifier() + "_temp");
+        return new File(getTempCacheDir(request), request.getSaveName());
     }
 
     public static void deleteDir(File dir) {
@@ -307,5 +323,47 @@ public class XDownUtils {
         return builder.toString();
     }
 
+    public static boolean isEmpty(CharSequence sequence) {
+        return sequence == null || "".equals(sequence);
+    }
 
+    public static String getSuffixName(String name) {
+        if (isEmpty(name)) {
+            return "";
+        }
+        int dotIndex = name.lastIndexOf('.');
+        return (dotIndex >= 0 && dotIndex < name.length()) ? name.substring(dotIndex) : "";
+    }
+
+    public static boolean isMessyCode(String strName) {
+        Pattern p = Pattern.compile("\\s*|t*|r*|n*");
+        Matcher m = p.matcher(strName);
+        String after = m.replaceAll("");
+        String temp = after.replaceAll("\\p{P}", "");
+        char[] ch = temp.trim().toCharArray();
+        float chLength = ch.length;
+        float count = 0;
+        for (int i = 0; i < ch.length; i++) {
+            char c = ch[i];
+            if (!Character.isLetterOrDigit(c)) {
+                if (!isChinese(c)) {
+                    count = count + 1;
+                }
+            }
+        }
+        if (chLength <= 0)
+            return false;
+        float result = count / chLength;
+        return result > 0.4;
+    }
+
+    public static boolean isChinese(char c) {
+        Character.UnicodeBlock ub = Character.UnicodeBlock.of(c);
+        return ub == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+                ub == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS ||
+                ub == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
+                ub == Character.UnicodeBlock.GENERAL_PUNCTUATION ||
+                ub == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION ||
+                ub == Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS;
+    }
 }

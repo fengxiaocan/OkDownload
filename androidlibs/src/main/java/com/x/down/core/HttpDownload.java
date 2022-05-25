@@ -5,6 +5,7 @@ import com.x.down.data.Params;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.listener.OnDownloadListener;
+import com.x.down.listener.OnMergeFileListener;
 import com.x.down.listener.OnProgressListener;
 import com.x.down.listener.OnSpeedListener;
 import com.x.down.listener.SSLCertificateFactory;
@@ -171,6 +172,14 @@ public interface HttpDownload extends IConnect {
      * @return
      */
     HttpDownload setOnSpeedListener(OnSpeedListener listener);
+
+    /**
+     * 设置文件合并回调
+     *
+     * @param listener
+     * @return
+     */
+    HttpDownload setOnMegerFileListener(OnMergeFileListener listener);
 
     /**
      * 删除当前下载

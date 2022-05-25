@@ -29,7 +29,6 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
                 request.getAutoRetryInterval()));
         this.listenerDisposer = new RequestListenerDisposer(request);
         this.httpRequest = request;
-        listenerDisposer.onPending(this);
     }
 
     public final void setTaskFuture(Future taskFuture) {
@@ -38,16 +37,15 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
 
     @Override
     public void run() {
-        listenerDisposer.onStart(this);
         super.run();
         XDownload.get().removeRequest(httpRequest.getTag());
+        taskFuture = null;
     }
 
     @Override
     protected void onExecute() throws Exception {
         HttpURLConnection http = httpRequest.buildConnect();
 
-        listenerDisposer.onConnecting(this);
         //POST请求
         if (httpRequest.isPost()) {
             RequestBody body = httpRequest.getRequestBody();
@@ -64,7 +62,9 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
             }
         }
 
+        listenerDisposer.onConnecting(this, getHeaders(http));
         int responseCode = http.getResponseCode();
+
         //是否需要重定向
         while (isNeedRedirects(responseCode)) {
             http = redirectsConnect(http, httpRequest);
@@ -72,7 +72,7 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
                 http.setRequestMethod("GET");
             }
             http.connect();
-            listenerDisposer.onConnecting(this);
+            listenerDisposer.onConnecting(this, getHeaders(http));
 
             if (http.getRequestMethod().equals("POST")) {
                 RequestBody body = httpRequest.getRequestBody();
