@@ -96,11 +96,11 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
         if (isSuccess(responseCode)) {
             String stream = readStringStream(http.getInputStream(), XDownUtils.getInputCharset(http));
             XDownUtils.disconnectHttp(http);
-            listenerDisposer.onResponse(this, Response.builderSuccess(stream, responseCode, headers));
+            listenerDisposer.onResponse(this, Response.builderSuccess(httpRequest.getConnectUrl(), stream, responseCode, headers));
         } else {
             String error = readStringStream(http.getErrorStream(), XDownUtils.getInputCharset(http));
             XDownUtils.disconnectHttp(http);
-            listenerDisposer.onResponse(this, Response.builderFailure(responseCode, headers, error));
+            listenerDisposer.onResponse(this, Response.builderFailure(httpRequest.getConnectUrl(), responseCode, headers, error));
             retryToRun();
         }
     }

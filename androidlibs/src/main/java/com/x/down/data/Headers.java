@@ -23,11 +23,15 @@ public class Headers {
     }
 
     public Headers addHeader(String name, String value) {
-        if (headerMap.containsKey(name)) {
-            headerMap.get(name).add(value);
-        } else {
-            List<String> list = new ArrayList<>();
-            headerMap.put(name, list);
+        if (name != null) {
+            if (value == null) value = "";
+            if (headerMap.containsKey(name)) {
+                headerMap.get(name).add(value);
+            } else {
+                List<String> list = new ArrayList<>();
+                list.add(value);
+                headerMap.put(name, list);
+            }
         }
         return this;
     }
