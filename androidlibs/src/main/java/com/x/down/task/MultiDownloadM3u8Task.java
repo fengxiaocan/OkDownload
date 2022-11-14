@@ -113,6 +113,8 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
                     sofar = file.length();
                 }
             }
+        }else {
+            file.getParentFile().mkdirs();
         }
 
         HttpURLConnection http = request.buildConnect(url);

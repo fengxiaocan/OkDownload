@@ -135,6 +135,8 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
             } else {
                 start = file.length();
             }
+        }else {
+            file.getParentFile().mkdirs();
         }
         currentLength = start;
         HttpURLConnection http = request.buildConnect(url);

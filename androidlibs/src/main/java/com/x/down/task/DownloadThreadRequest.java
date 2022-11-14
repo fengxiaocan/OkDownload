@@ -38,7 +38,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         this.listenerDisposer = new DownloadListenerDisposer(request);
     }
 
-    public final void setTaskFuture(Future taskFuture) {
+    public void setTaskFuture(Future taskFuture) {
         this.taskFuture = taskFuture;
     }
 

@@ -84,7 +84,6 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         if (checkComplete()) {
             return;
         }
-        cacheFile.getParentFile().mkdirs();
         HttpURLConnection http = null;
         if (sTotalLength <= 0) {
             DownloaderInfo info = InfoSerializeProxy.readDownloaderInfo(request);
@@ -118,7 +117,6 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
 
         //判断之前下载的文件是否存在或完成
         if (cacheFile.exists()) {
-
             if (sTotalLength > 0) {
                 if (cacheFile.length() == sTotalLength) {
                     //长度一致

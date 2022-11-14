@@ -74,6 +74,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
                 sofar = fileSize;
             }
         } else {
+            tempFile.getParentFile().mkdirs();
             start = blockStart;
             sofar = 0;
         }
