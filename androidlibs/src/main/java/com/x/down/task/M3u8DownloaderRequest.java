@@ -71,7 +71,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             InfoSerializeProxy.writeM3u8Info(httpRequest, info);
             //保存m3u8信息
             File m3u8File = new File(getFile().getAbsolutePath().replace(".m3u8", "_net.m3u8"));
-            M3U8Utils.createNetM3U8(m3u8File, XDownUtils.getTempCacheDir(request()), info);
+            M3U8Utils.createNetM3U8(m3u8File, XDownUtils.getTempCacheDir(request(),true), info);
         }
 
 
@@ -142,7 +142,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             }
         }
         //获取上次配置,决定断点下载不出错
-        File tempCacheDir = XDownUtils.getTempCacheDir(httpRequest);
+        File tempCacheDir = XDownUtils.getTempCacheDir(httpRequest,true);
 
         //是否需要删除之前的临时文件
         final boolean isDelectTemp = !httpRequest.isUseBreakpointResume();

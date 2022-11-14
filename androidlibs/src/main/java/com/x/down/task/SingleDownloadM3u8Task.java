@@ -60,7 +60,7 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
     @Override
     protected void onExecute() throws Exception {
         //判断之前下载的文件是否存在或完成
-        File tempCacheDir = XDownUtils.getTempCacheDir(request);
+        File tempCacheDir = XDownUtils.getTempCacheDir(request,true);
         if (!request.isUseBreakpointResume()) {
             XDownUtils.deleteDir(tempCacheDir);
         }

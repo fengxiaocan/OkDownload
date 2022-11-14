@@ -20,7 +20,7 @@ class InfoSerializeProxy {
      * @param info
      */
     public static void writeDownloaderInfo(XDownloadRequest request, DownloaderInfo info) {
-        File cacheDir = XDownUtils.getTempCacheDir(request);
+        File cacheDir = XDownUtils.getTempCacheDir(request,true);
         File file = new File(cacheDir, INFO_NAME);
         XDownUtils.writeObject(file, info);
     }
@@ -31,7 +31,7 @@ class InfoSerializeProxy {
      * @param request
      */
     public static DownloaderInfo readDownloaderInfo(XDownloadRequest request) {
-        File cacheDir = XDownUtils.getTempCacheDir(request);
+        File cacheDir = XDownUtils.getTempCacheDir(request,false);
         if (cacheDir.exists()) {
             File file = new File(cacheDir, INFO_NAME);
             return XDownUtils.readObject(file);
@@ -46,7 +46,7 @@ class InfoSerializeProxy {
      * @param block
      */
     public static void writeDownloaderBlock(XDownloadRequest request, DownloaderBlock block) {
-        File cacheDir = XDownUtils.getTempCacheDir(request);
+        File cacheDir = XDownUtils.getTempCacheDir(request,true);
         File file = new File(cacheDir, BLOCK_NAME);
         XDownUtils.writeObject(file, block);
     }
@@ -55,7 +55,7 @@ class InfoSerializeProxy {
      * 获取多线程下载的数量配置
      */
     public static DownloaderBlock readDownloaderBlock(XDownloadRequest request) {
-        File cacheDir = XDownUtils.getTempCacheDir(request);
+        File cacheDir = XDownUtils.getTempCacheDir(request,false);
         if (cacheDir.exists()) {
             File file = new File(cacheDir, BLOCK_NAME);
             return XDownUtils.readObject(file);
@@ -67,7 +67,7 @@ class InfoSerializeProxy {
      * 保存m3u8的信息
      */
     public static void deleteM3u8Info(XDownloadRequest request) {
-        File tempCacheDir = XDownUtils.getTempCacheDir(request);
+        File tempCacheDir = XDownUtils.getTempCacheDir(request,false);
         new File(tempCacheDir, M3U8_INFO_NAME).delete();
     }
 
@@ -75,7 +75,7 @@ class InfoSerializeProxy {
      * 保存m3u8的信息
      */
     public static void writeM3u8Info(XDownloadRequest request, M3U8Info block) {
-        File tempCacheDir = XDownUtils.getTempCacheDir(request);
+        File tempCacheDir = XDownUtils.getTempCacheDir(request,true);
         File file = new File(tempCacheDir, M3U8_INFO_NAME);
         synchronized (Object.class) {
             XDownUtils.writeObject(file, block);
@@ -87,7 +87,7 @@ class InfoSerializeProxy {
      */
     public static M3U8Info readM3u8Info(XDownloadRequest request) {
         synchronized (Object.class) {
-            File cacheDir = XDownUtils.getTempCacheDir(request);
+            File cacheDir = XDownUtils.getTempCacheDir(request,false);
             if (cacheDir.exists()) {
                 File file = new File(cacheDir, M3U8_INFO_NAME);
                 return XDownUtils.readObject(file);

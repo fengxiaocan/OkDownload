@@ -220,7 +220,7 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
         if (tempFile.exists()) {
             tempFile.delete();
         }
-        File tempCacheDir = XDownUtils.getTempCacheDir(this);
+        File tempCacheDir = XDownUtils.getTempCacheDir(this,false);
         XDownUtils.deleteDir(tempCacheDir);
         return this;
     }

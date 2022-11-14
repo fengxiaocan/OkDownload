@@ -198,13 +198,15 @@ public class XDownUtils {
      *
      * @return
      */
-    public static File getTempCacheDir(XDownloadRequest request) {
+    public static File getTempCacheDir(XDownloadRequest request,boolean mkdir) {
         //保存路径
         String saveDir = request.getCacheDir();
         //获取MD5
         String md5 = request.getIdentifier();
         File dir = new File(saveDir, md5 + "_temp");
-        dir.mkdirs();
+        if (mkdir) {
+            dir.mkdirs();
+        }
         return dir;
     }
 
@@ -215,7 +217,7 @@ public class XDownUtils {
      */
     public static File getTempFile(XDownloadRequest request) {
         //没有设置保存文件名
-        return new File(getTempCacheDir(request), request.getSaveName());
+        return new File(getTempCacheDir(request,false), request.getSaveName());
     }
 
     public static void deleteDir(File dir) {

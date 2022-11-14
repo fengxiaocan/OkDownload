@@ -44,7 +44,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         this.cacheFile = XDownUtils.getTempFile(request);
     }
 
-    public final void setTaskFuture(Future taskFuture) {
+    public void setTaskFuture(Future taskFuture) {
         this.taskFuture = taskFuture;
     }
 
@@ -84,6 +84,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         if (checkComplete()) {
             return;
         }
+        cacheFile.getParentFile().mkdirs();
         HttpURLConnection http = null;
         if (sTotalLength <= 0) {
             DownloaderInfo info = InfoSerializeProxy.readDownloaderInfo(request);

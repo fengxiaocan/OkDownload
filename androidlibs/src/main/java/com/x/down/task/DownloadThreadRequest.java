@@ -155,7 +155,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
             }
         }
         //获取上次配置,决定断点下载不出错
-        File cacheDir = XDownUtils.getTempCacheDir(httpRequest);
+        File cacheDir = XDownUtils.getTempCacheDir(httpRequest,true);
 
         //是否需要删除之前的临时文件
         final boolean isDelectTemp = !httpRequest.isUseBreakpointResume();
