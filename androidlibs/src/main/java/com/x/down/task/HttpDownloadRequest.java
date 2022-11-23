@@ -1,8 +1,8 @@
 package com.x.down.task;
 
 import com.x.down.core.XDownloadRequest;
-import com.x.down.made.DownInfo;
 import com.x.down.made.AutoRetryRecorder;
+import com.x.down.made.DownInfo;
 import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 

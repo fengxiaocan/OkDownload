@@ -1,8 +1,8 @@
 package com.x.down.proxy;
 
 import com.x.down.core.XDownloadRequest;
-import com.x.down.made.DownInfo;
 import com.x.down.m3u8.M3U8Info;
+import com.x.down.made.DownInfo;
 import com.x.down.made.DownloaderBlock;
 import com.x.down.tool.XDownUtils;
 

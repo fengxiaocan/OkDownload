@@ -5,12 +5,12 @@ import com.x.down.XDownload;
 import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
-import com.x.down.made.DownInfo;
 import com.x.down.impl.DownloadListenerDisposer;
 import com.x.down.impl.ProgressDisposer;
 import com.x.down.impl.SpeedDisposer;
 import com.x.down.listener.OnMergeFileListener;
 import com.x.down.made.AutoRetryRecorder;
+import com.x.down.made.DownInfo;
 import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
@@ -103,7 +103,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
                 //断开请求
                 XDownUtils.disconnectHttp(http);
                 //重试
-                retryToRun(code,stream);
+                retryToRun(code, stream);
                 return;
             }
         }
@@ -114,7 +114,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         }
         final boolean isBreakPointResume;//是否断点续传
 
-        File cacheFile = XDownUtils.getTempFile2(request);
+        File cacheFile = XDownUtils.getTempFile(request);
 
         //判断之前下载的文件是否存在或完成
         if (cacheFile.exists()) {
@@ -144,7 +144,6 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
                 isBreakPointResume = false;
             }
         } else {
-            cacheFile.getParentFile().mkdirs();
             sSofarLength = 0;
             isBreakPointResume = false;
         }
@@ -186,9 +185,9 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
             onResponseError(http, responseCode);
             return;
         }
-
+        cacheFile.getParentFile().mkdirs();
         //重新下载
-        if (!downReadInput(http, cacheFile,acceptRanges && isBreakPointResume)) {
+        if (!downReadInput(http, cacheFile, acceptRanges && isBreakPointResume)) {
             return;
         }
         //复制下载完成的文件
@@ -235,7 +234,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         listenerDisposer.onRequestError(this, responseCode, stream);
 
         XDownUtils.disconnectHttp(http);
-        retryToRun(responseCode,stream);
+        retryToRun(responseCode, stream);
     }
 
     @Override
