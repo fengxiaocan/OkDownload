@@ -22,6 +22,14 @@ public interface IConfig {
     IConfig saveDir(String dir);
 
     /**
+     * 默认日记路径文件夹
+     *
+     * @param dir
+     * @return
+     */
+    IConfig recordDir(String dir);
+
+    /**
      * 同时进行Execute线程请求的最大任务数
      *
      * @param maxCount

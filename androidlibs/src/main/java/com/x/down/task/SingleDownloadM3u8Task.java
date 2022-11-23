@@ -12,6 +12,7 @@ import com.x.down.m3u8.M3U8Info;
 import com.x.down.m3u8.M3U8Ts;
 import com.x.down.m3u8.M3U8Utils;
 import com.x.down.made.AutoRetryRecorder;
+import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -45,7 +46,7 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
         this.speedDisposer = new SpeedDisposer(request.isIgnoredSpeed(), request.getUpdateSpeedTimes(), listener);
     }
 
-    public final void setTaskFuture(Future taskFuture) {
+    public void setTaskFuture(Future taskFuture) {
         this.taskFuture = taskFuture;
     }
 
@@ -60,10 +61,11 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
     @Override
     protected void onExecute() throws Exception {
         //判断之前下载的文件是否存在或完成
-        File tempCacheDir = XDownUtils.getTempCacheDir(request,true);
+        File tempCacheDir = XDownUtils.getTempCacheDir(request);
         if (!request.isUseBreakpointResume()) {
             XDownUtils.deleteDir(tempCacheDir);
         }
+        tempCacheDir.mkdirs();
         sofarLength = 0;
         for (int i = 0; i < m3U8Info.getTsList().size(); i++) {
             downloadIndex = i;
@@ -78,7 +80,7 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
                     length = downloadLong(block.getInitSegmentUri());
                     block.setInitSegmentLength(length);
                     //更新长度保存到本地
-                    InfoSerializeProxy.writeM3u8Info(request, m3U8Info);
+                    SerializeProxy.writeM3u8Info(request, m3U8Info);
                 }
 
                 if (downloadTs(tsInitSegmentFile, block.getInitSegmentUri(), length)) {
@@ -92,7 +94,7 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
                 length = downloadLong(block.getUrl());
                 block.setTsSize(length);
                 //更新长度保存到本地
-                InfoSerializeProxy.writeM3u8Info(request, m3U8Info);
+                SerializeProxy.writeM3u8Info(request, m3U8Info);
             }
             File tempM3u8 = new File(tempCacheDir, block.getIndexName());
             if (downloadTs(tempM3u8, block.getUrl(), length)) {
@@ -100,7 +102,7 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
             }
         }
 
-        InfoSerializeProxy.deleteM3u8Info(request);
+        SerializeProxy.deleteM3u8Info(request);
         M3U8Utils.mergeM3u8(request, getFile(), m3U8Info);
 
         //处理最后的进度
@@ -135,8 +137,6 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
             } else {
                 start = file.length();
             }
-        }else {
-            file.getParentFile().mkdirs();
         }
         currentLength = start;
         HttpURLConnection http = request.buildConnect(url);
@@ -221,7 +221,7 @@ final class SingleDownloadM3u8Task extends HttpDownloadRequest implements IDownl
         listenerDisposer.onRequestError(this, responseCode, stream);
 
         XDownUtils.disconnectHttp(http);
-        retryToRun();
+        retryToRun(responseCode,stream);
     }
 
     @Override

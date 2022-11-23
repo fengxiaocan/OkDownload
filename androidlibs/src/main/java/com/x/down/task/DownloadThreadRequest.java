@@ -6,10 +6,11 @@ import com.x.down.XDownload;
 import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
+import com.x.down.made.DownInfo;
 import com.x.down.impl.DownloadListenerDisposer;
 import com.x.down.made.AutoRetryRecorder;
 import com.x.down.made.DownloaderBlock;
-import com.x.down.made.DownloaderInfo;
+import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -54,9 +55,9 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         boolean acceptRanges = true;
         //获取之前的下载信息
         if (sContentLength <= 0) {
-            DownloaderInfo info = InfoSerializeProxy.readDownloaderInfo(httpRequest);
+            DownInfo info = SerializeProxy.readDownloaderInfo(httpRequest);
             if (info != null) {
-                sContentLength = info.getContentLength();
+                sContentLength = info.getLength();
                 acceptRanges = info.isAccecp();
             }
         }
@@ -75,14 +76,13 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
                 //断开请求
                 XDownUtils.disconnectHttp(http);
                 //重试
-                retryToRun();
+                retryToRun(code, stream);
                 return;
             } else {
                 //先断开请求
                 XDownUtils.disconnectHttp(http);
             }
         }
-
         //判断之前有没有下载完成文件
         if (sContentLength > 0) {
             File file = getFile();
@@ -90,8 +90,13 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
                 if (file.length() == sContentLength) {
                     listenerDisposer.onComplete(this);
                     return;
+                } else if (file.length() > sContentLength) {
+                    file.deleteOnExit();
                 } else {
-                    file.delete();
+                    //不支持断点续传,删除源文件
+                    if (!acceptRanges || !httpRequest.isUseBreakpointResume()) {
+                        file.deleteOnExit();
+                    }
                 }
             }
         }
@@ -155,7 +160,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
             }
         }
         //获取上次配置,决定断点下载不出错
-        File cacheDir = XDownUtils.getTempCacheDir(httpRequest,true);
+        File cacheDir = XDownUtils.getTempCacheDir(httpRequest);
 
         //是否需要删除之前的临时文件
         final boolean isDelectTemp = !httpRequest.isUseBreakpointResume();
@@ -163,12 +168,13 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
             //需要删除之前的临时缓存文件
             XDownUtils.deleteDir(cacheDir);
         }
+        cacheDir.mkdirs();
 
-        DownloaderBlock block = InfoSerializeProxy.readDownloaderBlock(httpRequest);
+        DownloaderBlock block = SerializeProxy.readDownloaderBlock(httpRequest);
 
         if (block == null) {
             block = createBlock(totalLength);
-            InfoSerializeProxy.writeDownloaderBlock(httpRequest, block);
+            SerializeProxy.writeDownloaderBlock(httpRequest, block);
         }
 
         //每一块的长度
@@ -181,32 +187,31 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         final CountDownLatch countDownLatch = new CountDownLatch(threadCount);//计数器
         final MultiDownloadDisposer disposer = new MultiDownloadDisposer(httpRequest, countDownLatch, threadCount, listenerDisposer, totalLength);
 
-        synchronized (Object.class) {
-            long start = 0, end = -1;
-            final String filePath = getFilePath();
+        long start = 0, end = -1;
+        final String filePath = getFilePath();
 
-            for (int index = 0; index < threadCount; index++) {
-                start = end + 1;
-                final long fileLength;
-                if (index == threadCount - 1) {
-                    end = totalLength;
-                    fileLength = totalLength - start;
-                } else {
-                    end = start + blockLength;
-                    fileLength = blockLength + 1;
-                }
-                //保存的临时文件
-                File file = new File(cacheDir, httpRequest.getIdentifier() + "_temp_" + index);
-                //任务
-                MultiDownloadThreadTask task = new MultiDownloadThreadTask(httpRequest, file, filePath,
-                        autoRetryRecorder, fileLength, start, end, disposer);
-
-                disposer.addTask(task);
-                Future<?> submit = threadPoolExecutor.submit(task);
-                XDownload.get().addDownload(httpRequest.getTag(), task);
-                task.setTaskFuture(submit);
+        for (int index = 0; index < threadCount; index++) {
+            start = end + 1;
+            final long fileLength;
+            if (index == threadCount - 1) {
+                end = totalLength;
+                fileLength = totalLength - start;
+            } else {
+                end = start + blockLength;
+                fileLength = blockLength + 1;
             }
+            //保存的临时文件
+            File file = new File(cacheDir, httpRequest.getIdentifier() + "_temp_" + index);
+            //任务
+            MultiDownloadThreadTask task = new MultiDownloadThreadTask(httpRequest, file, filePath,
+                    autoRetryRecorder, fileLength, start, end, disposer);
+
+            disposer.addTask(task);
+            Future<?> submit = threadPoolExecutor.submit(task);
+            XDownload.get().addDownload(httpRequest.getTag(), task);
+            task.setTaskFuture(submit);
         }
+
         //等待下载完成
         try {
             countDownLatch.await();
@@ -232,8 +237,8 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         final int threadMaxSize = httpRequest.getMaxDownloadBlockSize();
         final int threadMinSize = httpRequest.getMinDownloadBlockSize();
         //最大的数量
-        final long maxLength = configThreadCount * threadMaxSize;
-        final long minLength = configThreadCount * threadMinSize;
+        final long maxLength = ((long) configThreadCount) * threadMaxSize;
+        final long minLength = ((long) configThreadCount) * threadMinSize;
         //智能计算执行任务的数量
         if (contentLength <= minLength) {
             //如果文件过小,设定的线程有浪费,控制线程的创建少于设定的线程

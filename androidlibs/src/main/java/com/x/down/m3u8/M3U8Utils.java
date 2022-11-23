@@ -23,8 +23,9 @@ import java.util.regex.Pattern;
 public class M3U8Utils {
 
     public static void mergeM3u8(XDownloadRequest request, File saveFile, M3U8Info info) throws Exception {
-        File tempDir = XDownUtils.getTempCacheDir(request,true);
+        File tempDir = XDownUtils.getTempCacheDir2(request);
         File file = new File(saveFile.getParentFile(), request.getSaveName().replace(".m3u8", ""));
+        file.getParentFile().mkdirs();
         tempDir.renameTo(file);
         createLocalM3U8File(saveFile, file, info);
         OnMergeFileListener listener = request.getOnMegerFileListener();

@@ -96,7 +96,7 @@ public final class DownloadListenerDisposer
 
     @Override
     public void onComplete(final IDownloadRequest request) {
-        XDownUtils.deleteDir(XDownUtils.getTempCacheDir(request.request(),false));
+        XDownUtils.deleteDir(XDownUtils.getTempCacheDir(request.request()));
         if (onDownloadListener == null) {
             return;
         }

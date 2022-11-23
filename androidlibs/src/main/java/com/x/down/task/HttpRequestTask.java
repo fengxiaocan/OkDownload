@@ -101,7 +101,7 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
             String error = readStringStream(http.getErrorStream(), XDownUtils.getInputCharset(http));
             XDownUtils.disconnectHttp(http);
             listenerDisposer.onResponse(this, Response.builderFailure(httpRequest.getConnectUrl(), responseCode, headers, error));
-            retryToRun();
+            retryToRun(responseCode,error);
         }
     }
 

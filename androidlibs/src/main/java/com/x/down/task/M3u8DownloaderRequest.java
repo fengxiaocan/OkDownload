@@ -12,6 +12,7 @@ import com.x.down.m3u8.M3U8Info;
 import com.x.down.m3u8.M3U8Ts;
 import com.x.down.m3u8.M3U8Utils;
 import com.x.down.made.AutoRetryRecorder;
+import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
 import java.io.BufferedReader;
@@ -22,6 +23,7 @@ import java.net.HttpURLConnection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.locks.ReentrantLock;
 
 final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownloadRequest, IConnectRequest {
 
@@ -38,7 +40,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         this.listenerDisposer = new DownloadListenerDisposer(request);
     }
 
-    public final void setTaskFuture(Future taskFuture) {
+    public void setTaskFuture(Future taskFuture) {
         this.taskFuture = taskFuture;
     }
 
@@ -55,7 +57,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             return;
         }
         //获取之前的下载信息
-        M3U8Info info = InfoSerializeProxy.readM3u8Info(httpRequest);
+        M3U8Info info = SerializeProxy.readM3u8Info(httpRequest);
         //判断一下文件的长度是否获取得到
         if (info == null || info.getTsList() == null) {
             if (info == null) {
@@ -68,10 +70,11 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             }
 
             //保存下来
-            InfoSerializeProxy.writeM3u8Info(httpRequest, info);
+            SerializeProxy.writeM3u8Info(httpRequest, info);
             //保存m3u8信息
             File m3u8File = new File(getFile().getAbsolutePath().replace(".m3u8", "_net.m3u8"));
-            M3U8Utils.createNetM3U8(m3u8File, XDownUtils.getTempCacheDir(request(),true), info);
+            File tempCacheDir = XDownUtils.getTempCacheDir2(request());
+            M3U8Utils.createNetM3U8(m3u8File, tempCacheDir, info);
         }
 
 
@@ -113,7 +116,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             //断开请求
             XDownUtils.disconnectHttp(http);
             //重试
-            retryToRun();
+            retryToRun(responseCode,stream);
             return false;//不成功,需要重试
         }
 
@@ -142,7 +145,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             }
         }
         //获取上次配置,决定断点下载不出错
-        File tempCacheDir = XDownUtils.getTempCacheDir(httpRequest,true);
+        File tempCacheDir = XDownUtils.getTempCacheDir(httpRequest);
 
         //是否需要删除之前的临时文件
         final boolean isDelectTemp = !httpRequest.isUseBreakpointResume();
@@ -150,6 +153,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             //需要删除之前的临时缓存文件
             XDownUtils.deleteDir(tempCacheDir);
         }
+        tempCacheDir.mkdirs();
 
         threadPoolExecutor = ExecutorGather.newSubTaskQueue(httpRequest.getDownloadMultiThreadSize());
 
@@ -157,6 +161,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         final MultiM3u8Disposer disposer = new MultiM3u8Disposer(httpRequest, countDownLatch, getFile(), info, listenerDisposer);
 
         String filePath = getFilePath();
+        final ReentrantLock lock = new ReentrantLock();
         for (int i = 0; i < info.getTsList().size(); i++) {
             MultiDownloadM3u8Task task = new MultiDownloadM3u8Task(httpRequest,
                     filePath,
@@ -164,7 +169,8 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
                     tempCacheDir,
                     autoRetryRecorder,
                     i,
-                    disposer);
+                    disposer,
+                    lock);
             Future<?> submit = threadPoolExecutor.submit(task);
             XDownload.get().addDownload(httpRequest.getTag(), task);
             disposer.addTask(task);
@@ -194,13 +200,13 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
                 M3U8Info info = M3U8Utils.parseLocalM3U8File(saveFile);
                 for (M3U8Ts ts : info.getTsList()) {
                     if (ts.hasInitSegment()) {
-                        File file = new File(ts.getInitSegmentUri());
+                        File file = new File(ts.getInitSegmentName());
                         if (!file.exists() || file.length() <= 0) {
                             return false;
                         }
                     }
-                    File file = new File(ts.getUrl());
-                    if (!file.exists() ||file.length() <= 0) {
+                    File file = new File(ts.getIndexName());
+                    if (!file.exists() || file.length() <= 0) {
                         return false;
                     }
                 }
@@ -210,7 +216,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
                 return false;
             }
         }
-        return b;
+        return false;
     }
 
     @Override

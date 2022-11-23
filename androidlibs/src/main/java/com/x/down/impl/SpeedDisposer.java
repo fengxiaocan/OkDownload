@@ -2,11 +2,13 @@ package com.x.down.impl;
 
 import com.x.down.base.IDownloadRequest;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 public final class SpeedDisposer {
     private final boolean ignoredSpeed;
     private final long updateSpeedTimes;
     private final DownloadListenerDisposer disposer;
-    private volatile long lastTime;
+    private final AtomicLong lastTime = new AtomicLong();
 
     public SpeedDisposer(
             boolean ignoredSpeed, long updateSpeedTimes, DownloadListenerDisposer listener) {
@@ -23,18 +25,15 @@ public final class SpeedDisposer {
         if (ignoredSpeed || updateSpeedTimes <= 0) {
             return false;
         }
-        synchronized (Object.class) {
-            if (lastTime == 0) {
-                lastTime = System.currentTimeMillis();
-                return false;
-            }
-            final long l = System.currentTimeMillis() - lastTime;
-            return l >= updateSpeedTimes;
-        }
+        return gap() >= updateSpeedTimes;
+    }
+
+    private long gap() {
+        return System.currentTimeMillis() - lastTime.get();
     }
 
     public void onSpeed(IDownloadRequest request, final int speed) {
-        disposer.onSpeed(request, speed, (int) (System.currentTimeMillis() - lastTime));
-        lastTime = System.currentTimeMillis();
+        disposer.onSpeed(request, speed, (int) gap());
+        lastTime.set(System.currentTimeMillis());
     }
 }

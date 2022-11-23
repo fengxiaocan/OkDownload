@@ -7,8 +7,11 @@ public class Config {
 
     public static synchronized XConfig config() {
         if (setting == null) {
-            String cachePath = new File(System.getProperty("user.dir"), "xDownload").getAbsolutePath();
-            setting = new XConfig(cachePath);
+            String cachePath = new File(System.getProperty("user.dir"), "XDownload").getAbsolutePath();
+            XConfig setting = new XConfig(cachePath);
+            File recordDir = new File(System.getProperty("user.dir"), ".RECORD_TEMP");
+            setting.recordDir(recordDir.getAbsolutePath());
+            Config.setting = setting;
         }
         return setting;
     }

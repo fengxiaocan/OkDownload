@@ -4,6 +4,7 @@ package com.x.down.config;
 public class XConfig implements IConfig {
     private String cacheDir;//默认缓存路径文件夹
     private String saveDir;//默认保存路径文件夹
+    private String recordDir;//默认日志记录保存路径文件夹
     private String userAgent = "";//默认UA
     private int maxExecuteTaskCount = 30;//同时进行Execute线程的最大任务数
     private int downloadMaxTaskCount = 2;//同时下载最大的任务数
@@ -26,6 +27,7 @@ public class XConfig implements IConfig {
     private int iOTimeOut = 20 * 1000;//设置IO流读取时间，单位为毫秒，默认20秒，该时间不能少于5秒
 
     public XConfig(String cacheDir) {
+        this.recordDir = cacheDir;
         this.cacheDir = cacheDir;
         this.saveDir = cacheDir;
     }
@@ -44,6 +46,12 @@ public class XConfig implements IConfig {
     @Override
     public XConfig saveDir(String dir) {
         this.saveDir = dir;
+        return this;
+    }
+
+    @Override
+    public XConfig recordDir(String dir) {
+        this.recordDir = dir;
         return this;
     }
 
@@ -162,7 +170,7 @@ public class XConfig implements IConfig {
     }
 
     @Override
-    public IConfig acquireName(AcquireNameInterceptor interceptor) {
+    public XConfig acquireName(AcquireNameInterceptor interceptor) {
         this.acquireNameInterceptor = interceptor;
         return this;
     }
@@ -173,6 +181,10 @@ public class XConfig implements IConfig {
 
     public String getSaveDir() {
         return saveDir;
+    }
+
+    public String getRecordDir() {
+        return recordDir;
     }
 
     public int getBufferedSize() {

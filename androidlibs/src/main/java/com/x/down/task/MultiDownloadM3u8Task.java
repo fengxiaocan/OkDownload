@@ -8,6 +8,7 @@ import com.x.down.core.XDownloadRequest;
 import com.x.down.m3u8.M3U8Info;
 import com.x.down.m3u8.M3U8Ts;
 import com.x.down.made.AutoRetryRecorder;
+import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -17,6 +18,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDownloadTask, IDownloadRequest, IConnectRequest {
     private final MultiM3u8Disposer multiDisposer;
@@ -25,9 +28,10 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
     private final M3U8Info m3U8Info;
     private final String saveFile;
     private final File tempFile;
+    private final AtomicLong sofarSeg = new AtomicLong(0);
+    private final AtomicLong sofar = new AtomicLong(0);
+    private final ReentrantLock lock;
     private volatile Future taskFuture;
-    private volatile long sofarSeg = 0;
-    private volatile long sofar = 0;
 
     public MultiDownloadM3u8Task(
             XDownloadRequest request,
@@ -36,7 +40,8 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
             File tempDir,
             AutoRetryRecorder recorder,
             final int index,
-            MultiM3u8Disposer listener) {
+            MultiM3u8Disposer listener,
+            ReentrantLock lock) {
         super(recorder, request.getBufferedSize());
         this.request = request;
         this.saveFile = saveFile;
@@ -44,24 +49,24 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
         this.m3U8Ts = m3U8Info.getTsList().get(index);
         this.tempFile = new File(tempDir, m3U8Ts.getIndexName());
         this.multiDisposer = listener;
+        this.lock = lock;
     }
 
-    public final void setTaskFuture(Future taskFuture) {
+    public void setTaskFuture(Future taskFuture) {
         this.taskFuture = taskFuture;
     }
 
     @Override
     public void run() {
         super.run();
-        multiDisposer.removeTask(this);
         XDownload.get().removeMultiDownload(tag(), this);
         taskFuture = null;
     }
 
     @Override
     protected void onExecute() throws Throwable {
-        sofar = 0;
-        sofarSeg = 0;
+        sofarSeg.set(0);
+        sofar.set(0);
         if (m3U8Ts.hasInitSegment()) {
             //下载MAP片段信息
             File tsSegFile = new File(tempFile.getParentFile(), m3U8Ts.getInitSegmentName());
@@ -71,7 +76,12 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
                 length = downloadLong(m3U8Ts.getInitSegmentUri());
                 m3U8Ts.setInitSegmentLength(length);
                 //更新长度保存到本地
-                InfoSerializeProxy.writeM3u8Info(request, m3U8Info);
+                lock.unlock();
+                try {
+                    SerializeProxy.writeM3u8Info(request, m3U8Info);
+                } finally {
+                    lock.unlock();
+                }
             }
             downloadTs(tsSegFile, m3U8Ts.getInitSegmentUri(), length, true);
         }
@@ -81,7 +91,12 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
             length = downloadLong(m3U8Ts.getUrl());
             m3U8Ts.setTsSize(length);
             //更新长度保存到本地
-            InfoSerializeProxy.writeM3u8Info(request, m3U8Info);
+            lock.unlock();
+            try {
+                SerializeProxy.writeM3u8Info(request, m3U8Info);
+            } finally {
+                lock.unlock();
+            }
         }
         downloadTs(tempFile, m3U8Ts.getUrl(), length, false);
     }
@@ -90,30 +105,31 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
         long start = 0;
         if (file.exists()) {
             if (file.length() == length) {
+                multiDisposer.removeTask(this);
                 multiDisposer.onComplete(this);
                 if (isSeg) {
-                    sofarSeg = length;
+                    sofarSeg.set(length);
                 } else {
-                    sofar = length;
+                    sofar.set(length);
                 }
                 return;
             } else if (file.length() > length) {
                 file.delete();
                 start = 0;
                 if (isSeg) {
-                    sofarSeg = 0;
+                    sofarSeg.set(0);
                 } else {
-                    sofar = 0;
+                    sofar.set(0);
                 }
             } else {
                 start = file.length();
                 if (isSeg) {
-                    sofarSeg = file.length();
+                    sofarSeg.set(file.length());
                 } else {
-                    sofar = file.length();
+                    sofar.set(file.length());
                 }
             }
-        }else {
+        } else {
             file.getParentFile().mkdirs();
         }
 
@@ -134,9 +150,9 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
         if (isSuccess(responseCode)) {
             if (!acceptRanges) {
                 if (isSeg) {
-                    sofarSeg = 0;
+                    sofarSeg.set(0);
                 } else {
-                    sofar = 0;
+                    sofar.set(0);
                 }
             }
             FileOutputStream os = new FileOutputStream(file, acceptRanges);
@@ -144,10 +160,11 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
                 return;
             }
             if (isSeg) {
-                sofarSeg = length;
+                sofarSeg.set(length);
             } else {
-                sofar = length;
+                sofar.set(length);
             }
+            multiDisposer.removeTask(this);
             multiDisposer.onComplete(this);
             XDownUtils.disconnectHttp(http);
         } else {
@@ -156,7 +173,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
             multiDisposer.onRequestError(this, responseCode, stream);
             XDownUtils.disconnectHttp(http);
             //失败重试
-            retryToRun();
+            retryToRun(responseCode, stream);
         }
     }
 
@@ -197,7 +214,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
     }
 
 
-    protected final boolean readInputStream(InputStream is, OutputStream os, final boolean isSeg) throws IOException {
+    protected boolean readInputStream(InputStream is, OutputStream os, final boolean isSeg) throws IOException {
         try {
             byte[] bytes = new byte[byteArraySize];
             int length;
@@ -235,9 +252,9 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
 
     protected void onProgress(int length, boolean isSeg) {
         if (isSeg) {
-            sofarSeg += length;
+            sofarSeg.addAndGet(length);
         } else {
-            sofar += length;
+            sofar.addAndGet(length);
         }
         multiDisposer.onProgress(this, length);
     }
@@ -278,7 +295,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
 
     @Override
     public long blockSofar() {
-        return sofarSeg + sofar;
+        return sofarSeg.get() + sofar.get();
     }
 
     @Override

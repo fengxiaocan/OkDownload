@@ -13,7 +13,9 @@ import com.x.down.core.XExecuteRequest;
 import com.x.down.core.XExecuteRequestQueue;
 import com.x.down.core.XHttpRequest;
 import com.x.down.core.XHttpRequestQueue;
+import com.x.down.tool.XDownUtils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -270,5 +272,12 @@ public final class XDownload {
      */
     public boolean checkRequest(String tag) {
         return connectMap.containsKey(tag) | downloadMap.containsKey(tag);
+    }
+
+    public static void deleteCache() {
+        String dir = Config.config().getRecordDir();
+        XDownUtils.deleteDir(new File(dir));
+        String cacheDir = Config.config().getCacheDir();
+        XDownUtils.deleteDir(new File(cacheDir));
     }
 }

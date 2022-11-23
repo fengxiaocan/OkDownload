@@ -5,12 +5,13 @@ import com.x.down.XDownload;
 import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
+import com.x.down.made.DownInfo;
 import com.x.down.impl.DownloadListenerDisposer;
 import com.x.down.impl.ProgressDisposer;
 import com.x.down.impl.SpeedDisposer;
 import com.x.down.listener.OnMergeFileListener;
 import com.x.down.made.AutoRetryRecorder;
-import com.x.down.made.DownloaderInfo;
+import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -23,7 +24,6 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
     private final DownloadListenerDisposer listenerDisposer;
     private final ProgressDisposer progressDisposer;
     private final SpeedDisposer speedDisposer;
-    private final File cacheFile;
     private final XDownloadRequest request;
     private volatile long sTotalLength;
     private volatile long sSofarLength = 0;
@@ -41,7 +41,6 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
                 request.getUpdateProgressTimes(),
                 listener);
         this.speedDisposer = new SpeedDisposer(request.isIgnoredSpeed(), request.getUpdateSpeedTimes(), listener);
-        this.cacheFile = XDownUtils.getTempFile(request);
     }
 
     public void setTaskFuture(Future taskFuture) {
@@ -86,9 +85,9 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         }
         HttpURLConnection http = null;
         if (sTotalLength <= 0) {
-            DownloaderInfo info = InfoSerializeProxy.readDownloaderInfo(request);
+            DownInfo info = SerializeProxy.readDownloaderInfo(request);
             if (info != null) {
-                sTotalLength = info.getContentLength();
+                sTotalLength = info.getLength();
             }
         }
 
@@ -104,7 +103,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
                 //断开请求
                 XDownUtils.disconnectHttp(http);
                 //重试
-                retryToRun();
+                retryToRun(code,stream);
                 return;
             }
         }
@@ -114,6 +113,8 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
             return;
         }
         final boolean isBreakPointResume;//是否断点续传
+
+        File cacheFile = XDownUtils.getTempFile2(request);
 
         //判断之前下载的文件是否存在或完成
         if (cacheFile.exists()) {
@@ -187,7 +188,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         }
 
         //重新下载
-        if (!downReadInput(http, acceptRanges && isBreakPointResume)) {
+        if (!downReadInput(http, cacheFile,acceptRanges && isBreakPointResume)) {
             return;
         }
         //复制下载完成的文件
@@ -210,7 +211,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         listenerDisposer.onComplete(this);
     }
 
-    private boolean downReadInput(HttpURLConnection http, boolean append) throws IOException {
+    private boolean downReadInput(HttpURLConnection http, File cacheFile, boolean append) throws IOException {
         if (!append) {
             sSofarLength = 0;
         }
@@ -234,7 +235,7 @@ final class SingleDownloadThreadTask extends HttpDownloadRequest implements IDow
         listenerDisposer.onRequestError(this, responseCode, stream);
 
         XDownUtils.disconnectHttp(http);
-        retryToRun();
+        retryToRun(responseCode,stream);
     }
 
     @Override

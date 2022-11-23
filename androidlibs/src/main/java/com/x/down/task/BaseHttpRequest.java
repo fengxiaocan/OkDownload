@@ -23,9 +23,9 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
     /**
      * 重定向地址
      *
-     * @param connection
+     * @param connection 连接
      * @param request
-     * @return
+     * @return 新的连接
      * @throws Exception
      */
     protected HttpURLConnection redirectsConnect(HttpURLConnection connection, BuilderURLConnection request)
@@ -106,7 +106,7 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
         return redirectsUrl;
     }
 
-    protected boolean isNeedRedirects(int code) {
+    protected final boolean isNeedRedirects(int code) {
         switch (code) {
             case 301:
                 //客户请求的文档在其他地方，新的URL在Location头中给出，浏览器应该自动地访问新的URL。
@@ -125,26 +125,11 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
         }
     }
 
-    protected final void retryToRun() {
-        if (isCancel) {
-            onCancel();
-        } else {
-            if (autoRetryRecorder.isCanRetry()) {
-                //回调重试
-                onRetry();
-                //决定是否延迟执行重试
-                autoRetryRecorder.sleep();
-                //自动重试下载
-                runTask();
-            }
-        }
-    }
-
-    protected boolean isSuccess(int responseCode) {
+    protected final boolean isSuccess(int responseCode) {
         return responseCode >= 200 && responseCode < 400;
     }
 
-    protected Headers getHeaders(HttpURLConnection http) {
+    protected final Headers getHeaders(HttpURLConnection http) {
         Headers headers = new Headers();
         Map<String, List<String>> map = http.getHeaderFields();
         for (String key : map.keySet()) {
@@ -153,7 +138,7 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
         return headers;
     }
 
-    protected String readStringStream(InputStream is, String charset) throws IOException {
+    protected final String readStringStream(InputStream is, String charset) throws IOException {
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(new InputStreamReader(is, charset));

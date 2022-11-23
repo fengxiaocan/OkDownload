@@ -10,10 +10,14 @@ import com.x.down.impl.SpeedDisposer;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.m3u8.M3U8Info;
 import com.x.down.m3u8.M3U8Utils;
+import com.x.down.proxy.SerializeProxy;
 
 import java.io.File;
 import java.util.LinkedList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 class MultiM3u8Disposer implements OnDownloadConnectListener {
@@ -27,10 +31,10 @@ class MultiM3u8Disposer implements OnDownloadConnectListener {
     private final M3U8Info m3U8Info;
     private final CountDownLatch countDownLatch;
     private final LinkedList<MultiDownloadTask> taskList = new LinkedList<>();
-    private volatile int successIndex = 0;//成功位置
-    private volatile int bolckIndex = 0;//指针位置
-    private volatile int speedLength = 0;
-    private volatile long sofarLength = 0;
+    private final AtomicInteger success = new AtomicInteger(0);//成功位置
+    private final AtomicLong sofar = new AtomicLong(0);
+    private final AtomicInteger speedLength = new AtomicInteger(0);
+    private final ReentrantLock lock = new ReentrantLock();
 
     public MultiM3u8Disposer(XDownloadRequest request,
                              CountDownLatch countDownLatch,
@@ -56,9 +60,12 @@ class MultiM3u8Disposer implements OnDownloadConnectListener {
     }
 
     public void removeTask(MultiDownloadTask task) {
-        synchronized (Object.class) {
-            sofarLength += task.blockSofar();
+        lock.lock();
+        try {
+            sofar.getAndAdd(task.blockSofar());
             taskList.remove(task);
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -73,26 +80,27 @@ class MultiM3u8Disposer implements OnDownloadConnectListener {
     }
 
     public void onProgress(IDownloadRequest request, int length) {
-        speedLength += length;
+        speedLength.addAndGet(length);
 
         if (progressDisposer.isCallProgress()) {
-            float v = successIndex * 1F / blockCount;
+            float v = success.get() * 1F / blockCount;
             progressDisposer.onProgress(request, v, 0, getSofarLength());
         }
-
         if (speedDisposer.isCallSpeed()) {
-            speedDisposer.onSpeed(request, speedLength);
-            speedLength = 0;
+            speedDisposer.onSpeed(request, speedLength.getAndSet(0));
         }
     }
 
     public long getSofarLength() {
-        synchronized (Object.class) {
-            long length = sofarLength;
+        lock.lock();
+        try {
+            long length = sofar.get();
             for (MultiDownloadTask downloadTask : taskList) {
                 length += downloadTask.blockSofar();
             }
             return length;
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -107,36 +115,30 @@ class MultiM3u8Disposer implements OnDownloadConnectListener {
     }
 
     public void onFailure(IDownloadRequest task, Throwable e) {
-        bolckIndex++;
         listenerDisposer.onFailure(task, e);
         //计数器
         countDownLatch.countDown();
     }
 
     public void onComplete(IDownloadRequest task) {
-        bolckIndex++;
-        successIndex++;
-
-
-        if (bolckIndex == blockCount) {
-            if (successIndex == blockCount) {
-                if (!progressDisposer.isIgnoredProgress()) {
-                    listenerDisposer.onProgress(task, 1, 0, getSofarLength());
-                }
-                if (!speedDisposer.isIgnoredSpeed()) {
-                    speedDisposer.onSpeed(task, speedLength);
-                }
-                speedLength = 0;
-                try {
-                    InfoSerializeProxy.deleteM3u8Info(request);
-                    M3U8Utils.mergeM3u8(request, saveFile, m3U8Info);
-                    listenerDisposer.onComplete(task);
-                } catch (Exception e) {
-                    onFailure(task, e);
-                }
-            } else {
-                onFailure(task, new RuntimeException("The downloaded ts is missing!"));
+        success.getAndIncrement();
+        if (success.get() == blockCount) {
+            if (!progressDisposer.isIgnoredProgress()) {
+                listenerDisposer.onProgress(task, 1, 0, getSofarLength());
             }
+            if (!speedDisposer.isIgnoredSpeed()) {
+                speedDisposer.onSpeed(task, speedLength.get());
+            }
+            speedLength.set(0);
+            try {
+                SerializeProxy.deleteM3u8Info(request);
+                M3U8Utils.mergeM3u8(request, saveFile, m3U8Info);
+                listenerDisposer.onComplete(task);
+            } catch (Exception e) {
+                listenerDisposer.onFailure(task, e);
+            }
+        } else {
+            listenerDisposer.onFailure(task, new RuntimeException("The downloaded ts is missing!"));
         }
         XDownload.get().removeDownload(task.tag());
         //计数器

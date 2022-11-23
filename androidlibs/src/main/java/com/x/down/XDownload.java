@@ -6,6 +6,7 @@ import android.os.Build;
 import com.x.down.base.IConnectRequest;
 import com.x.down.config.Config;
 import com.x.down.config.IConfig;
+import com.x.down.config.UserAgent;
 import com.x.down.config.XConfig;
 import com.x.down.core.Execute;
 import com.x.down.core.HttpConnect;
@@ -17,7 +18,9 @@ import com.x.down.core.XExecuteRequest;
 import com.x.down.core.XExecuteRequestQueue;
 import com.x.down.core.XHttpRequest;
 import com.x.down.core.XHttpRequestQueue;
+import com.x.down.tool.XDownUtils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,21 +29,31 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 public final class XDownload {
     private static XDownload xDownload;
+    private static Context context;
     private final Map<String, IConnectRequest> connectMap = new HashMap<>();
     private final Map<String, List<IConnectRequest>> downloadMap = new HashMap<>();
 
     private XDownload() {
     }
 
+    public static Context getContext() {
+        return context;
+    }
+
     public static IConfig init(Context context, String dirName) {
-        XConfig config = new XConfig(context.getExternalCacheDir().getAbsolutePath());
-        config.saveDir(context.getExternalFilesDir(dirName).getAbsolutePath());
-        config.userAgent(getDefaultUserAgent());
+        File cache = new File(context.getExternalCacheDir(), dirName);
+        File save = context.getExternalFilesDir(dirName);
+        File recordDir = new File(context.getExternalCacheDir(), ".RECORD_TEMP");
+        XConfig config = new XConfig(cache.getAbsolutePath());
+        config.saveDir(save.getAbsolutePath());
+        config.recordDir(recordDir.getAbsolutePath());
+        config.userAgent(UserAgent.Android);
         XDownload.get().config(config);
         return config;
     }
 
     public static IConfig init(Context context) {
+        XDownload.context = context;
         return init(context, "xDownload");
     }
 
@@ -310,5 +323,12 @@ public final class XDownload {
      */
     public boolean checkRequest(String tag) {
         return connectMap.containsKey(tag) | downloadMap.containsKey(tag);
+    }
+
+    public static void deleteCache(){
+        String dir = Config.config().getRecordDir();
+        XDownUtils.deleteDir(new File(dir));
+        String cacheDir = Config.config().getCacheDir();
+        XDownUtils.deleteDir(new File(cacheDir));
     }
 }

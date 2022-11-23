@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.HttpURLConnection;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 final class MultiDownloadThreadTask extends HttpDownloadRequest implements MultiDownloadTask, IDownloadRequest, IConnectRequest {
     private final MultiDownloadDisposer multiDisposer;
@@ -21,8 +22,8 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
     private final long fileLength;
     private final long blockStart;
     private final long blockEnd;
+    private final AtomicLong sofar = new AtomicLong(0);
     private volatile Future taskFuture;
-    private volatile long sofar = 0;
 
     public MultiDownloadThreadTask(
             XDownloadRequest request,
@@ -43,14 +44,13 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
         this.multiDisposer = listener;
     }
 
-    public final void setTaskFuture(Future taskFuture) {
+    public void setTaskFuture(Future taskFuture) {
         this.taskFuture = taskFuture;
     }
 
     @Override
     public void run() {
         super.run();
-        multiDisposer.removeTask(this);
         XDownload.get().removeMultiDownload(tag(), this);
         taskFuture = null;
     }
@@ -62,21 +62,21 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
         if (tempFile.exists()) {
             final long fileSize = tempFile.length();
             if (fileSize == fileLength) {
-                sofar = fileLength;
+                sofar.set(fileLength);
+                multiDisposer.removeTask(this);
                 multiDisposer.onComplete(this);
                 return;
             } else if (fileSize > fileLength) {
                 tempFile.delete();
                 start = blockStart;
-                sofar = 0;
+                sofar.set(0);
             } else {
                 start = blockStart + fileSize;
-                sofar = fileSize;
+                sofar.set(fileSize);
             }
         } else {
-            tempFile.getParentFile().mkdirs();
             start = blockStart;
-            sofar = 0;
+            sofar.set(0);
         }
 
         HttpURLConnection http = request.buildConnect();
@@ -93,11 +93,13 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
         }
 
         if (isSuccess(responseCode)) {
+            tempFile.getParentFile().mkdirs();
             FileOutputStream os = new FileOutputStream(tempFile, true);
             if (!readInputStream(http.getInputStream(), os)) {
                 return;
             }
-            sofar = fileLength;
+            sofar.set(fileLength);
+            multiDisposer.removeTask(this);
             multiDisposer.onComplete(this);
 
             XDownUtils.disconnectHttp(http);
@@ -106,7 +108,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
             multiDisposer.onRequestError(this, responseCode, stream);
 
             XDownUtils.disconnectHttp(http);
-            retryToRun();
+            retryToRun(responseCode,stream);
         }
     }
 
@@ -127,7 +129,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
 
     @Override
     protected void onProgress(int length) {
-        sofar += length;
+        sofar.addAndGet(length);
         multiDisposer.onProgress(this, length);
     }
 
@@ -167,7 +169,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
 
     @Override
     public long blockSofar() {
-        return sofar;
+        return sofar.get();
     }
 
     @Override

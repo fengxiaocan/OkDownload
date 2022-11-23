@@ -213,14 +213,12 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
         XDownload.get().cancleDownload(getTag());
 
         File saveFile = getSaveFile();
-        if (saveFile.exists()) {
-            saveFile.delete();
-        }
+        saveFile.deleteOnExit();
+
         File tempFile = XDownUtils.getTempFile(this);
-        if (tempFile.exists()) {
-            tempFile.delete();
-        }
-        File tempCacheDir = XDownUtils.getTempCacheDir(this,false);
+        tempFile.deleteOnExit();
+
+        File tempCacheDir = XDownUtils.getTempCacheDir(this);
         XDownUtils.deleteDir(tempCacheDir);
         return this;
     }

@@ -1,13 +1,11 @@
 package com.x.down.task;
 
 import com.x.down.core.XDownloadRequest;
+import com.x.down.made.DownInfo;
 import com.x.down.made.AutoRetryRecorder;
-import com.x.down.made.DownloaderInfo;
+import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,7 +53,7 @@ abstract class HttpDownloadRequest extends BaseHttpRequest {
         //是否支持断点下载
         boolean acceptRanges = isAcceptRanges(http);
         //保存下载信息
-        InfoSerializeProxy.writeDownloaderInfo(request, new DownloaderInfo(contentLength, acceptRanges));
+        SerializeProxy.writeDownloaderInfo(request, new DownInfo(contentLength, acceptRanges));
         return http;
     }
 

@@ -1,5 +1,6 @@
 package com.x.down.tool;
 
+import com.x.down.config.Config;
 import com.x.down.core.XDownloadRequest;
 import com.x.down.impl.UnSafeTrustManager;
 
@@ -104,7 +105,7 @@ public class XDownUtils {
         if (connection != null) {
             try {
                 connection.disconnect();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
         }
@@ -198,16 +199,37 @@ public class XDownUtils {
      *
      * @return
      */
-    public static File getTempCacheDir(XDownloadRequest request,boolean mkdir) {
+    public static File getTempCacheDir(XDownloadRequest request) {
         //保存路径
-        String saveDir = request.getCacheDir();
+        String cacheDir = request.getCacheDir();
         //获取MD5
         String md5 = request.getIdentifier();
-        File dir = new File(saveDir, md5 + "_temp");
-        if (mkdir) {
-            dir.mkdirs();
-        }
-        return dir;
+        return new File(cacheDir, md5 + "_temp");
+    }
+
+    /**
+     * 保存临时文件的文件夹
+     *
+     * @return
+     */
+    public static File getTempCacheDir2(XDownloadRequest request) {
+        File cacheDir = getTempCacheDir(request);
+        cacheDir.mkdirs();
+        return cacheDir;
+    }
+
+    /**
+     * 保存临时文件的文件夹
+     *
+     * @return
+     */
+    public static File getRecordCacheFile(XDownloadRequest request) {
+        String md5 = request.getIdentifier();
+        //日志记录
+        String recordDir = Config.config().getRecordDir();
+        File file = new File(recordDir, md5);
+        file.getParentFile().mkdirs();
+        return file;
     }
 
     /**
@@ -217,7 +239,16 @@ public class XDownUtils {
      */
     public static File getTempFile(XDownloadRequest request) {
         //没有设置保存文件名
-        return new File(getTempCacheDir(request,false), request.getSaveName());
+        return new File(getTempCacheDir(request), request.getSaveName());
+    }
+
+    /**
+     * 获得临时文件的文件名
+     *
+     * @return
+     */
+    public static File getTempFile2(XDownloadRequest request) {
+        return new File(getTempCacheDir2(request), request.getSaveName());
     }
 
     public static void deleteDir(File dir) {
@@ -353,19 +384,13 @@ public class XDownUtils {
                 }
             }
         }
-        if (chLength <= 0)
-            return false;
+        if (chLength <= 0) return false;
         float result = count / chLength;
         return result > 0.4;
     }
 
     public static boolean isChinese(char c) {
         Character.UnicodeBlock ub = Character.UnicodeBlock.of(c);
-        return ub == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
-                ub == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS ||
-                ub == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
-                ub == Character.UnicodeBlock.GENERAL_PUNCTUATION ||
-                ub == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION ||
-                ub == Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS;
+        return ub == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS || ub == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS || ub == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A || ub == Character.UnicodeBlock.GENERAL_PUNCTUATION || ub == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION || ub == Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS;
     }
 }
