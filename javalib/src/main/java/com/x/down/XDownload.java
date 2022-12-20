@@ -20,9 +20,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadPoolExecutor;
 
-public final class XDownload {
+public final class XDownload extends ExecutorGather{
 
     private static XDownload xDownload;
     private final Map<String, IConnectRequest> connectMap = new HashMap<>();
@@ -79,6 +78,46 @@ public final class XDownload {
      */
     public static HttpDownload download(String baseUrl) {
         return XDownloadRequest.with(baseUrl);
+    }
+
+    /**
+     * 创建一个m3u8下载任务
+     *
+     * @param baseUrl
+     * @return
+     */
+    public static HttpDownload downM3u8(String baseUrl) {
+        return XDownloadRequest.with(baseUrl).asM3u8();
+    }
+
+    /**
+     * 创建一个m3u8解析下载任务
+     *
+     * @param m3u8Info m3u8的信息
+     * @return
+     */
+    public static HttpDownload parseM3u8Info(String m3u8Info) {
+        return XDownloadRequest.with("").parseM3u8Info(m3u8Info);
+    }
+
+    /**
+     * 创建一个m3u8解析下载任务
+     *
+     * @param m3u8File m3u8的信息
+     * @return
+     */
+    public static HttpDownload parseM3u8(File m3u8File) {
+        return XDownloadRequest.with("").parseM3u8(m3u8File);
+    }
+
+    /**
+     * 创建一个m3u8解析下载任务
+     *
+     * @param m3u8File m3u8的信息
+     * @return
+     */
+    public static HttpDownload parseM3u8Path(String m3u8File) {
+        return XDownloadRequest.with("").parseM3u8Path(m3u8File);
     }
 
     /**
