@@ -1,7 +1,6 @@
 package com.x.down.task;
 
 
-import com.x.down.ExecutorGather;
 import com.x.down.XDownload;
 import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
@@ -17,8 +16,10 @@ import com.x.down.tool.XDownUtils;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -57,7 +58,37 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             return;
         }
         //获取之前的下载信息
-        M3U8Info info = SerializeProxy.readM3u8Info(httpRequest);
+        M3U8Info info = null;
+        if (httpRequest.isAsM3u8()) {
+            if (httpRequest.getM3u8Info() != null) {
+                info = new M3U8Info();
+                BufferedReader bufferedReader = null;
+                try {
+                    bufferedReader = new BufferedReader(new StringReader(httpRequest.getM3u8Info()));
+                    if (!parseNetworkM3U8Info(info, bufferedReader)) {
+                        info = null;
+                    }
+                } finally {
+                    XDownUtils.closeIo(bufferedReader);
+                }
+            }
+            if (info == null && httpRequest.getM3u8Path() != null) {
+                info = new M3U8Info();
+                BufferedReader bufferedReader = null;
+                try {
+                    bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(httpRequest.getM3u8Path())));
+                    if (!parseNetworkM3U8Info(info, bufferedReader)) {
+                        info = null;
+                    }
+                } finally {
+                    XDownUtils.closeIo(bufferedReader);
+                }
+            }
+        }
+        if (info == null) {
+            info = SerializeProxy.readM3u8Info(httpRequest);
+        }
+
         //判断一下文件的长度是否获取得到
         if (info == null || info.getTsList() == null) {
             if (info == null) {
@@ -87,7 +118,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             SingleDownloadM3u8Task threadTask = new SingleDownloadM3u8Task(httpRequest,
                     listenerDisposer, info);
             XDownload.get().removeDownload(httpRequest.getTag());
-            Future<?> future = ExecutorGather.executorDownloaderQueue().submit(threadTask);
+            Future<?> future = XDownload.executorDownloaderQueue().submit(threadTask);
             threadTask.setTaskFuture(future);
             XDownload.get().addDownload(httpRequest.getTag(), threadTask);
         }
@@ -116,7 +147,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             //断开请求
             XDownUtils.disconnectHttp(http);
             //重试
-            retryToRun(responseCode,stream);
+            retryToRun(responseCode, stream);
             return false;//不成功,需要重试
         }
 
@@ -155,7 +186,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         }
         tempCacheDir.mkdirs();
 
-        threadPoolExecutor = ExecutorGather.newSubTaskQueue(httpRequest.getDownloadMultiThreadSize());
+        threadPoolExecutor = XDownload.newSubTaskQueue(httpRequest.getDownloadMultiThreadSize());
 
         final CountDownLatch countDownLatch = new CountDownLatch(info.getTsList().size());//计数器
         final MultiM3u8Disposer disposer = new MultiM3u8Disposer(httpRequest, countDownLatch, getFile(), info, listenerDisposer);
@@ -273,9 +304,11 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
     }
 
     private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, InputStream inputStream) throws Exception {
+        return parseNetworkM3U8Info(m3U8Info, new BufferedReader(new InputStreamReader(inputStream)));
+    }
+
+    private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, BufferedReader bufferedReader) throws Exception {
         String videoUrl = m3U8Info.getUrl();
-        BufferedReader bufferedReader = null;
-        bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
         float tsDuration = 0;
         int targetDuration = 0;
         int tsIndex = 0;

@@ -120,41 +120,6 @@ public final class XDownload {
         return XExecuteRequestQueue.create();
     }
 
-    public static ThreadPoolExecutor executorTaskQueue() {
-        return ExecutorGather.executorTaskQueue();
-    }
-
-    /**
-     * 创建多线程下载的子任务线程池队列
-     */
-    public static ThreadPoolExecutor newSubTaskQueue(int corePoolSize) {
-        return ExecutorGather.newSubTaskQueue(corePoolSize);
-    }
-
-    /**
-     * 创建下载的线程队列
-     *
-     * @return
-     */
-    public static ThreadPoolExecutor executorDownloaderQueue() {
-        return ExecutorGather.executorDownloaderQueue();
-    }
-
-    public static synchronized void recyclerDownloaderQueue() {
-        ExecutorGather.recyclerDownloaderQueue();
-    }
-
-    public static synchronized void recyclerHttpQueue() {
-        ExecutorGather.recyclerHttpQueue();
-    }
-
-    public static synchronized void recyclerSingleQueue() {
-        ExecutorGather.recyclerSingleQueue();
-    }
-
-    public static synchronized void recyclerAllQueue() {
-        ExecutorGather.recyclerAllQueue();
-    }
 
     public XDownload config(XConfig setting) {
         Config.initSetting(setting);

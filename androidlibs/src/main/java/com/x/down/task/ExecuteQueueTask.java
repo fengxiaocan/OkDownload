@@ -1,7 +1,6 @@
 package com.x.down.task;
 
 
-import com.x.down.ExecutorGather;
 import com.x.down.XDownload;
 import com.x.down.base.IConnectRequest;
 import com.x.down.core.XExecuteRequest;
@@ -54,7 +53,7 @@ final class ExecuteQueueTask implements Runnable, IConnectRequest {
     //执行队列任务请求
     private void runQueueTask(XExecuteRequestQueue queue, String queueTag) {
         //创建线程池
-        ThreadPoolExecutor poolExecutor = ExecutorGather.newSubTaskQueue(queue.getMaxExecuteTaskCount());
+        ThreadPoolExecutor poolExecutor = XDownload.newSubTaskQueue(queue.getMaxExecuteTaskCount());
         //获取任务栈
         List<XExecuteRequest> requests = queue.cloneToExecute();
         //创建计数器

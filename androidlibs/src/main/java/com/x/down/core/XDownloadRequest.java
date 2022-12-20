@@ -61,6 +61,12 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
     protected OnSpeedListener onSpeedListener;
     //文件合并监听
     protected OnMergeFileListener onMergeFileListener;
+    //是否强制为m3u8
+    protected boolean asM3u8 = false;
+    //m3u8信息的文件路径
+    protected String m3u8Path;
+    //m3u8的信息
+    protected String m3u8Info;
 
     protected XDownloadRequest(String baseUrl) {
         super(baseUrl);
@@ -220,6 +226,33 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
 
         File tempCacheDir = XDownUtils.getTempCacheDir(this);
         XDownUtils.deleteDir(tempCacheDir);
+        return this;
+    }
+
+    @Override
+    public HttpDownload asM3u8() {
+        this.asM3u8 = true;
+        return this;
+    }
+
+    @Override
+    public HttpDownload parseM3u8(File fileM3u8) {
+        this.m3u8Path = fileM3u8.getAbsolutePath();
+        this.asM3u8 = true;
+        return this;
+    }
+
+    @Override
+    public HttpDownload parseM3u8Path(String fileM3u8) {
+        this.m3u8Path = fileM3u8;
+        this.asM3u8 = true;
+        return this;
+    }
+
+    @Override
+    public HttpDownload parseM3u8Info(String m3u8Info) {
+        this.m3u8Info = m3u8Info;
+        this.asM3u8 = true;
         return this;
     }
 
@@ -389,9 +422,21 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
         return onMergeFileListener;
     }
 
+    public boolean isAsM3u8() {
+        return asM3u8;
+    }
+
+    public String getM3u8Path() {
+        return m3u8Path;
+    }
+
+    public String getM3u8Info() {
+        return m3u8Info;
+    }
+
     @Override
     public String start() {
-        if (getConnectUrl().endsWith(".m3u8")) {
+        if (getConnectUrl().endsWith(".m3u8")||asM3u8) {
             ThreadTaskFactory.createM3u8DownloaderRequest(this);
         } else {
             if (isUseMultiThread && downloadMultiThreadSize > 1) {

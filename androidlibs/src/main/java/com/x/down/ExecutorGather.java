@@ -7,7 +7,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public final class ExecutorGather {
+class ExecutorGather {
     private static final int MAIN_TASK_KEEP_ALIVE_TIME = 60;//主任务线程保活时间
     private static final int SUBTASK_KEEP_ALIVE_TIME = 1;//子任务线程保活时间
 

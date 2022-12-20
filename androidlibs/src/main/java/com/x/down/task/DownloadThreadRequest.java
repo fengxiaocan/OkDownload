@@ -1,7 +1,6 @@
 package com.x.down.task;
 
 
-import com.x.down.ExecutorGather;
 import com.x.down.XDownload;
 import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
@@ -111,7 +110,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
                     sContentLength);
             XDownload.get().removeDownload(httpRequest.getTag());
             if (!threadTask.checkComplete()) {
-                Future<?> future = ExecutorGather.executorDownloaderQueue().submit(threadTask);
+                Future<?> future = XDownload.executorDownloaderQueue().submit(threadTask);
                 threadTask.setTaskFuture(future);
                 XDownload.get().addDownload(httpRequest.getTag(), threadTask);
             }
@@ -182,7 +181,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         //需要的执行任务数量
         final int threadCount = block.getThreadCount();
 
-        threadPoolExecutor = ExecutorGather.newSubTaskQueue(httpRequest.getDownloadMultiThreadSize());
+        threadPoolExecutor = XDownload.newSubTaskQueue(httpRequest.getDownloadMultiThreadSize());
 
         final CountDownLatch countDownLatch = new CountDownLatch(threadCount);//计数器
         final MultiDownloadDisposer disposer = new MultiDownloadDisposer(httpRequest, countDownLatch, threadCount, listenerDisposer, totalLength);

@@ -25,9 +25,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadPoolExecutor;
 
-public final class XDownload {
+public final class XDownload extends ExecutorGather {
     private static XDownload xDownload;
     private static Context context;
     private final Map<String, IConnectRequest> connectMap = new HashMap<>();
@@ -107,6 +106,46 @@ public final class XDownload {
         return XDownloadRequest.with(baseUrl);
     }
 
+    /**
+     * 创建一个m3u8下载任务
+     *
+     * @param baseUrl
+     * @return
+     */
+    public static HttpDownload downM3u8(String baseUrl) {
+        return XDownloadRequest.with(baseUrl).asM3u8();
+    }
+
+    /**
+     * 创建一个m3u8解析下载任务
+     *
+     * @param m3u8Info m3u8的信息
+     * @return
+     */
+    public static HttpDownload parseM3u8Info(String m3u8Info) {
+        return XDownloadRequest.with("").parseM3u8Info(m3u8Info);
+    }
+
+    /**
+     * 创建一个m3u8解析下载任务
+     *
+     * @param m3u8File m3u8的信息
+     * @return
+     */
+    public static HttpDownload parseM3u8(File m3u8File) {
+        return XDownloadRequest.with("").parseM3u8(m3u8File);
+    }
+
+    /**
+     * 创建一个m3u8解析下载任务
+     *
+     * @param m3u8File m3u8的信息
+     * @return
+     */
+    public static HttpDownload parseM3u8Path(String m3u8File) {
+        return XDownloadRequest.with("").parseM3u8Path(m3u8File);
+    }
+
 
     /**
      * 创建一个任务请求
@@ -171,40 +210,11 @@ public final class XDownload {
         return result.toString();
     }
 
-    public static ThreadPoolExecutor executorTaskQueue() {
-        return ExecutorGather.executorTaskQueue();
-    }
-
-    /**
-     * 创建多线程下载的子任务线程池队列
-     */
-    public static ThreadPoolExecutor newSubTaskQueue(int corePoolSize) {
-        return ExecutorGather.newSubTaskQueue(corePoolSize);
-    }
-
-    /**
-     * 创建下载的线程队列
-     *
-     * @return
-     */
-    public static ThreadPoolExecutor executorDownloaderQueue() {
-        return ExecutorGather.executorDownloaderQueue();
-    }
-
-    public static synchronized void recyclerDownloaderQueue() {
-        ExecutorGather.recyclerDownloaderQueue();
-    }
-
-    public static synchronized void recyclerHttpQueue() {
-        ExecutorGather.recyclerHttpQueue();
-    }
-
-    public static synchronized void recyclerSingleQueue() {
-        ExecutorGather.recyclerSingleQueue();
-    }
-
-    public static synchronized void recyclerAllQueue() {
-        ExecutorGather.recyclerAllQueue();
+    public static void deleteCache() {
+        String dir = Config.config().getRecordDir();
+        XDownUtils.deleteDir(new File(dir));
+        String cacheDir = Config.config().getCacheDir();
+        XDownUtils.deleteDir(new File(cacheDir));
     }
 
     public XDownload config(XConfig setting) {
@@ -323,12 +333,5 @@ public final class XDownload {
      */
     public boolean checkRequest(String tag) {
         return connectMap.containsKey(tag) | downloadMap.containsKey(tag);
-    }
-
-    public static void deleteCache(){
-        String dir = Config.config().getRecordDir();
-        XDownUtils.deleteDir(new File(dir));
-        String cacheDir = Config.config().getCacheDir();
-        XDownUtils.deleteDir(new File(cacheDir));
     }
 }

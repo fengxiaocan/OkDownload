@@ -188,6 +188,34 @@ public interface HttpDownload extends IConnect {
      */
     HttpDownload delete();
 
+    /**
+     * 作为m3u8下载
+     *
+     * @return
+     */
+    HttpDownload asM3u8();
+
+    /**
+     * 解析m3u8数据然后下载
+     *
+     * @return
+     */
+    HttpDownload parseM3u8(File fileM3u8);
+
+    /**
+     * 解析m3u8数据然后下载
+     *
+     * @return
+     */
+    HttpDownload parseM3u8Path(String fileM3u8);
+
+    /**
+     *  解析m3u8数据然后下载
+     *
+     * @return
+     */
+    HttpDownload parseM3u8Info(String m3u8Info);
+
     @Override
     HttpDownload setTag(String tag);
 
