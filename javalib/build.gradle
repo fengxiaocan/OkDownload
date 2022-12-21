@@ -38,7 +38,7 @@ shadowJar {
 //    }
     baseName = 'javalib'
     classifier = null
-    version = 'v1.6'
+    version = 'v1.7'
 //    dependencies {
         //需要依赖的第三方lib
         //include(dependency('baselib'))

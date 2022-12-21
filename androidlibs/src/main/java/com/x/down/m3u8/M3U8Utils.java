@@ -1,6 +1,5 @@
 package com.x.down.m3u8;
 
-import android.text.TextUtils;
 
 import com.x.down.core.XDownloadRequest;
 import com.x.down.listener.OnMergeFileListener;
@@ -397,7 +396,7 @@ public class M3U8Utils {
         if (XDownUtils.isEmpty(str1) || XDownUtils.isEmpty(str2)) {
             return "";
         }
-        if (TextUtils.equals(str1, str2)) {
+        if (str1.equals(str2)) {
             return str1;
         }
         char[] arr1 = str1.toCharArray();
