@@ -150,8 +150,26 @@ public class M3U8Ts implements Comparable<M3U8Ts>, Serializable {
         return "temp_m3u8_" + mIndex + suffixName;
     }
 
+    @Override
     public String toString() {
-        return "duration=" + mDuration + ", index=" + mIndex + ", name=" + mName;
+        return "M3U8Ts{" +
+                "mDuration=" + mDuration +
+                ", mIndex=" + mIndex +
+                ", mSequence=" + mSequence +
+                ", mUrl='" + mUrl + '\'' +
+                ", mName='" + mName + '\'' +
+                ", mTsSize=" + mTsSize +
+                ", mHasDiscontinuity=" + mHasDiscontinuity +
+                ", mHasKey=" + mHasKey +
+                ", mMethod='" + mMethod + '\'' +
+                ", mKeyUri='" + mKeyUri + '\'' +
+                ", mKeyIV='" + mKeyIV + '\'' +
+                ", mIsMessyKey=" + mIsMessyKey +
+                ", mInitSegmentLength=" + mInitSegmentLength +
+                ", mHasInitSegment=" + mHasInitSegment +
+                ", mInitSegmentUri='" + mInitSegmentUri + '\'' +
+                ", mSegmentByteRange='" + mSegmentByteRange + '\'' +
+                '}';
     }
 
     @Override

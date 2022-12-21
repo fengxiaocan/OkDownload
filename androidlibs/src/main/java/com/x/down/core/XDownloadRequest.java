@@ -8,6 +8,7 @@ import com.x.down.data.Params;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.listener.OnDownloadListener;
+import com.x.down.listener.OnM3u8ParseIntercept;
 import com.x.down.listener.OnMergeFileListener;
 import com.x.down.listener.OnProgressListener;
 import com.x.down.listener.OnSpeedListener;
@@ -61,6 +62,8 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
     protected OnSpeedListener onSpeedListener;
     //文件合并监听
     protected OnMergeFileListener onMergeFileListener;
+    //m3u8解析拦截器
+    protected OnM3u8ParseIntercept onM3u8ParseIntercept;
     //是否强制为m3u8
     protected boolean asM3u8 = false;
     //m3u8信息的文件路径
@@ -211,6 +214,12 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
     @Override
     public HttpDownload setOnMegerFileListener(OnMergeFileListener listener) {
         onMergeFileListener = listener;
+        return this;
+    }
+
+    @Override
+    public HttpDownload setOnM3u8ParseIntercept(OnM3u8ParseIntercept listener) {
+        onM3u8ParseIntercept = listener;
         return this;
     }
 
@@ -420,6 +429,10 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
 
     public OnMergeFileListener getOnMegerFileListener() {
         return onMergeFileListener;
+    }
+
+    public OnM3u8ParseIntercept getOnM3u8ParseIntercept() {
+        return onM3u8ParseIntercept;
     }
 
     public boolean isAsM3u8() {

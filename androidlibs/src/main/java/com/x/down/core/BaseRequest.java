@@ -19,7 +19,7 @@ abstract class BaseRequest implements IConnect {
 
     protected String certificatePath;//https 证书地址
     protected SSLCertificateFactory sslCertificateFactory;//https 证书创建器
-    protected String baseUrl;//下载地址
+    protected final String baseUrl;//下载地址
     protected Headers headers;//头部信息
     protected Params params;//参数
     protected Schedulers schedulers;//调度器

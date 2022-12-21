@@ -5,6 +5,7 @@ import com.x.down.data.Params;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.listener.OnDownloadListener;
+import com.x.down.listener.OnM3u8ParseIntercept;
 import com.x.down.listener.OnMergeFileListener;
 import com.x.down.listener.OnProgressListener;
 import com.x.down.listener.OnSpeedListener;
@@ -181,6 +182,8 @@ public interface HttpDownload extends IConnect {
      */
     HttpDownload setOnMegerFileListener(OnMergeFileListener listener);
 
+    HttpDownload setOnM3u8ParseIntercept(OnM3u8ParseIntercept listener);
+
     /**
      * 删除当前下载
      *
@@ -210,7 +213,7 @@ public interface HttpDownload extends IConnect {
     HttpDownload parseM3u8Path(String fileM3u8);
 
     /**
-     *  解析m3u8数据然后下载
+     * 解析m3u8数据然后下载
      *
      * @return
      */

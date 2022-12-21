@@ -60,30 +60,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         //获取之前的下载信息
         M3U8Info info = null;
         if (httpRequest.isAsM3u8()) {
-            if (httpRequest.getM3u8Info() != null) {
-                info = new M3U8Info();
-                BufferedReader bufferedReader = null;
-                try {
-                    bufferedReader = new BufferedReader(new StringReader(httpRequest.getM3u8Info()));
-                    if (!parseNetworkM3U8Info(info, bufferedReader)) {
-                        info = null;
-                    }
-                } finally {
-                    XDownUtils.closeIo(bufferedReader);
-                }
-            }
-            if (info == null && httpRequest.getM3u8Path() != null) {
-                info = new M3U8Info();
-                BufferedReader bufferedReader = null;
-                try {
-                    bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(httpRequest.getM3u8Path())));
-                    if (!parseNetworkM3U8Info(info, bufferedReader)) {
-                        info = null;
-                    }
-                } finally {
-                    XDownUtils.closeIo(bufferedReader);
-                }
-            }
+            info = parseM3U8Info();
         }
         if (info == null) {
             info = SerializeProxy.readM3u8Info(httpRequest);
@@ -102,10 +79,8 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
 
             //保存下来
             SerializeProxy.writeM3u8Info(httpRequest, info);
-            //保存m3u8信息
-            File m3u8File = new File(getFile().getAbsolutePath().replace(".m3u8", "_net.m3u8"));
             File tempCacheDir = XDownUtils.getTempCacheDir2(request());
-            M3U8Utils.createNetM3U8(m3u8File, tempCacheDir, info);
+            M3U8Utils.createNetM3U8(getM3u8NetFile(), tempCacheDir, info);
         }
 
 
@@ -224,11 +199,11 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
      * @return
      */
     public boolean checkComplete() {
-        File saveFile = getFile();
+        File saveFile = getM3u8NetFile();
         boolean b = saveFile.exists() && saveFile.length() > 0;
         if (b) {
             try {
-                M3U8Info info = M3U8Utils.parseLocalM3U8File(saveFile);
+                M3U8Info info = M3U8Utils.parseLocalM3u8File(saveFile);
                 for (M3U8Ts ts : info.getTsList()) {
                     if (ts.hasInitSegment()) {
                         File file = new File(ts.getInitSegmentName());
@@ -294,6 +269,15 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         return httpRequest;
     }
 
+    /**
+     * 保存m3u8网络信息的文件
+     * @return
+     */
+    private File getM3u8NetFile(){
+        //保存m3u8信息
+        return new File(getFile().getAbsolutePath()+ "_net.m3u8");
+    }
+
     private File getFile() {
         return httpRequest.getSaveFile();
     }
@@ -303,125 +287,53 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         return getFile().getAbsolutePath();
     }
 
-    private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, InputStream inputStream) throws Exception {
-        return parseNetworkM3U8Info(m3U8Info, new BufferedReader(new InputStreamReader(inputStream)));
+    private M3U8Info parseM3U8Info() throws Exception {
+        M3U8Info info = null;
+        if (httpRequest.getM3u8Info() != null) {
+            info = new M3U8Info();
+            info.setUrl(httpRequest.getConnectUrl());
+            BufferedReader bufferedReader = null;
+            try {
+                bufferedReader = new BufferedReader(new StringReader(httpRequest.getM3u8Info()));
+                if (!parseNetworkM3U8Info(info, bufferedReader)) {
+                    info = null;
+                }
+            } finally {
+                XDownUtils.closeIo(bufferedReader);
+            }
+        }
+        if (info == null && httpRequest.getM3u8Path() != null) {
+            info = new M3U8Info();
+            BufferedReader bufferedReader = null;
+            try {
+                bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(httpRequest.getM3u8Path())));
+                if (!parseNetworkM3U8Info(info, bufferedReader)) {
+                    info = null;
+                }
+            } finally {
+                XDownUtils.closeIo(bufferedReader);
+            }
+        }
+        return info;
     }
 
-    private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, BufferedReader bufferedReader) throws Exception {
-        String videoUrl = m3U8Info.getUrl();
-        float tsDuration = 0;
-        int targetDuration = 0;
-        int tsIndex = 0;
-        int version = 0;
-        int sequence = 0;
-        boolean hasDiscontinuity = false;
-        boolean hasEndList = false;
-        boolean hasStreamInfo = false;
-        boolean hasKey = false;
-        boolean hasInitSegment = false;
-        String method = null;
-        String encryptionIV = null;
-        String encryptionKeyUri = null;
-        String initSegmentUri = null;
-        String segmentByteRange = null;
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            line = line.trim();
-            if (XDownUtils.isEmpty(line)) {
-                continue;
-            }
-            if (line.startsWith(M3U8Constants.TAG_PREFIX)) {
-                if (line.startsWith(M3U8Constants.TAG_MEDIA_DURATION)) {
-                    String ret = M3U8Utils.parseStringAttr(line, M3U8Constants.REGEX_MEDIA_DURATION);
-                    if (!XDownUtils.isEmpty(ret)) {
-                        tsDuration = Float.parseFloat(ret);
-                    }
-                } else if (line.startsWith(M3U8Constants.TAG_TARGET_DURATION)) {
-                    String ret = M3U8Utils.parseStringAttr(line, M3U8Constants.REGEX_TARGET_DURATION);
-                    if (!XDownUtils.isEmpty(ret)) {
-                        targetDuration = Integer.parseInt(ret);
-                    }
-                } else if (line.startsWith(M3U8Constants.TAG_VERSION)) {
-                    String ret = M3U8Utils.parseStringAttr(line, M3U8Constants.REGEX_VERSION);
-                    if (!XDownUtils.isEmpty(ret)) {
-                        version = Integer.parseInt(ret);
-                    }
-                } else if (line.startsWith(M3U8Constants.TAG_MEDIA_SEQUENCE)) {
-                    String ret = M3U8Utils.parseStringAttr(line, M3U8Constants.REGEX_MEDIA_SEQUENCE);
-                    if (!XDownUtils.isEmpty(ret)) {
-                        sequence = Integer.parseInt(ret);
-                    }
-                } else if (line.startsWith(M3U8Constants.TAG_STREAM_INF)) {
-                    hasStreamInfo = true;
-                } else if (line.startsWith(M3U8Constants.TAG_DISCONTINUITY)) {
-                    hasDiscontinuity = true;
-                } else if (line.startsWith(M3U8Constants.TAG_ENDLIST)) {
-                    hasEndList = true;
-                } else if (line.startsWith(M3U8Constants.TAG_KEY)) {
-                    hasKey = true;
-                    method = M3U8Utils.parseOptionalStringAttr(line, M3U8Constants.REGEX_METHOD);
-                    String keyFormat = M3U8Utils.parseOptionalStringAttr(line, M3U8Constants.REGEX_KEYFORMAT);
-                    if (!M3U8Constants.METHOD_NONE.equals(method)) {
-                        encryptionIV = M3U8Utils.parseOptionalStringAttr(line, M3U8Constants.REGEX_IV);
-                        if (M3U8Constants.KEYFORMAT_IDENTITY.equals(keyFormat) || keyFormat == null) {
-                            if (M3U8Constants.METHOD_AES_128.equals(method)) {
-                                // The segment is fully encrypted using an identity key.
-                                String tempKeyUri = M3U8Utils.parseStringAttr(line, M3U8Constants.REGEX_URI);
-                                if (tempKeyUri != null) {
-                                    encryptionKeyUri = M3U8Utils.getM3U8AbsoluteUrl(videoUrl, tempKeyUri);
-                                }
-                            } else {
-                                // Do nothing. Samples are encrypted using an identity key,
-                                // but this is not supported. Hopefully, a traditional DRM
-                                // alternative is also provided.
-                            }
-                        } else {
-                            // Do nothing.
-                        }
-                    }
-                } else if (line.startsWith(M3U8Constants.TAG_INIT_SEGMENT)) {
-                    String tempInitSegmentUri = M3U8Utils.parseStringAttr(line, M3U8Constants.REGEX_URI);
-                    if (!XDownUtils.isEmpty(tempInitSegmentUri)) {
-                        hasInitSegment = true;
-                        initSegmentUri = M3U8Utils.getM3U8AbsoluteUrl(videoUrl, tempInitSegmentUri);
-                        segmentByteRange = M3U8Utils.parseOptionalStringAttr(line, M3U8Constants.REGEX_ATTR_BYTERANGE);
-                    }
-                }
-                continue;
-            }
-            // It has '#EXT-X-STREAM-INF' tag;
-            if (hasStreamInfo) {
-                m3U8Info.setUrl(M3U8Utils.getM3U8AbsoluteUrl(videoUrl, line));
-                return false;
-            }
-            if (Math.abs(tsDuration) < 0.001f) {
-                continue;
-            }
-            M3U8Ts ts = new M3U8Ts();
-            ts.initTsAttributes(M3U8Utils.getM3U8AbsoluteUrl(videoUrl, line), tsDuration, tsIndex, sequence++, hasDiscontinuity);
-            if (hasKey) {
-                ts.setKeyConfig(method, encryptionKeyUri, encryptionIV);
-            }
-            if (hasInitSegment) {
-                ts.setInitSegmentInfo(initSegmentUri, segmentByteRange);
-            }
-            m3U8Info.addTs(ts);
-            tsIndex++;
-            tsDuration = 0;
-            hasStreamInfo = false;
-            hasDiscontinuity = false;
-            hasKey = false;
-            hasInitSegment = false;
-            method = null;
-            encryptionKeyUri = null;
-            encryptionIV = null;
-            initSegmentUri = null;
-            segmentByteRange = null;
+    private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, InputStream inputStream) throws Exception {
+        BufferedReader bufferedReader = null;
+        try {
+            bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+            return M3U8Utils.parseNetworkM3U8Info(m3U8Info, bufferedReader, httpRequest.getOnM3u8ParseIntercept());
+        } finally {
+            XDownUtils.closeIo(bufferedReader);
         }
-        m3U8Info.setTargetDuration(targetDuration);
-        m3U8Info.setVersion(version);
-        m3U8Info.setSequence(sequence);
-        m3U8Info.setHasEndList(hasEndList);
-        return true;
     }
+
+    private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, BufferedReader reader) throws Exception {
+        try {
+            return M3U8Utils.parseNetworkM3U8Info(m3U8Info, reader,httpRequest.getOnM3u8ParseIntercept());
+        } finally {
+            XDownUtils.closeIo(reader);
+        }
+    }
+
+
 }
