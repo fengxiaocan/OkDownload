@@ -13,8 +13,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,7 +27,7 @@ public class M3U8Utils {
 
         OnMergeM3u8Listener listener = request.getOnMergeM3u8Listener();
         if (listener != null) {
-            listener.onM3u8Merge(request,m3u8Dir,info);
+            listener.onM3u8Merge(request, m3u8Dir, info);
         }
     }
 
@@ -105,7 +103,7 @@ public class M3U8Utils {
                                 // The segment is fully encrypted using an identity key.
                                 String tempKeyUri = M3U8Utils.parseStringAttr(line, M3U8Constants.REGEX_URI);
                                 if (tempKeyUri != null) {
-                                    if (XDownUtils.isEmpty(baseUrl)) {
+                                    if (XDownUtils.isEmpty(baseUrl) || !baseUrl.startsWith("http")) {
                                         tempWaitKeyUri = tempKeyUri;
                                     }
                                     encryptionKeyUri = M3U8Utils.getM3U8AbsoluteUrl(baseUrl, tempKeyUri);
@@ -140,7 +138,7 @@ public class M3U8Utils {
             }
             M3U8Ts ts = new M3U8Ts();
 
-            if (tempWaitKeyUri != null && XDownUtils.isEmpty(encryptionKeyUri)) {
+            if (tempWaitKeyUri != null && (XDownUtils.isEmpty(encryptionKeyUri) || !encryptionKeyUri.startsWith("http"))) {
                 if (line.startsWith("http")) {
                     encryptionKeyUri = M3U8Utils.getM3U8AbsoluteUrl(getHostUrl(line), tempWaitKeyUri);
                 }

@@ -6,7 +6,7 @@ import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
 import com.x.down.impl.DownloadListenerDisposer;
-import com.x.down.listener.OnM3u8ParseIntercept;
+import com.x.down.listener.OnM3u8Intercept;
 import com.x.down.m3u8.M3U8Info;
 import com.x.down.m3u8.M3U8Ts;
 import com.x.down.m3u8.M3U8Utils;
@@ -85,6 +85,11 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         }
 
         checkIsCancel();
+
+        OnM3u8Intercept intercept = httpRequest.getOnM3u8ParseIntercept();
+        if (intercept != null) {
+            intercept.intercept(info);
+        }
 
         //判断下载方式
         if (httpRequest.isUseMultiThread() && httpRequest.getDownloadMultiThreadSize() > 1) {
@@ -369,7 +374,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
      * @throws Exception
      */
     private M3U8Info parseNetworkM3U8Info(String baseUrl, InputStream inputStream) throws Exception {
-        OnM3u8ParseIntercept intercept = httpRequest.getOnM3u8ParseIntercept();
+        OnM3u8Intercept intercept = httpRequest.getOnM3u8ParseIntercept();
         BufferedReader bufferedReader = null;
         try {
             bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
@@ -394,7 +399,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
      * @throws Exception
      */
     private M3U8Info parseNetworkM3U8Info(String baseUrl, BufferedReader reader) throws Exception {
-        OnM3u8ParseIntercept intercept = httpRequest.getOnM3u8ParseIntercept();
+        OnM3u8Intercept intercept = httpRequest.getOnM3u8ParseIntercept();
         try {
             if (intercept != null) {
                 M3U8Info info = intercept.intercept(reader);

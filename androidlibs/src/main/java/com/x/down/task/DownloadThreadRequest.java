@@ -13,7 +13,6 @@ import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;

@@ -10,7 +10,6 @@ import com.x.down.impl.SpeedDisposer;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.m3u8.M3U8Info;
 import com.x.down.m3u8.M3U8Utils;
-import com.x.down.proxy.SerializeProxy;
 
 import java.io.File;
 import java.util.LinkedList;

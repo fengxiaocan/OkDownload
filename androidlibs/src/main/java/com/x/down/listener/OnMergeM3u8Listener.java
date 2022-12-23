@@ -4,7 +4,6 @@ import com.x.down.core.XDownloadRequest;
 import com.x.down.m3u8.M3U8Info;
 
 import java.io.File;
-import java.util.List;
 
 public interface OnMergeM3u8Listener {
     /**
