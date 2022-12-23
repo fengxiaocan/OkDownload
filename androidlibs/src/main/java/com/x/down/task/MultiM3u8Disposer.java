@@ -131,13 +131,12 @@ class MultiM3u8Disposer implements OnDownloadConnectListener {
             }
             speedLength.set(0);
             try {
-                SerializeProxy.deleteM3u8Info(request);
                 M3U8Utils.mergeM3u8(request, saveFile, m3U8Info);
                 listenerDisposer.onComplete(task);
             } catch (Exception e) {
                 listenerDisposer.onFailure(task, e);
             }
-        } else {
+        } else if (success.get() > blockCount){
             listenerDisposer.onFailure(task, new RuntimeException("The downloaded ts is missing!"));
         }
         XDownload.get().removeDownload(task.tag());

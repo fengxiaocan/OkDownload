@@ -1,11 +1,14 @@
 package com.x.down.task;
 
+
 import com.x.down.made.AutoRetryRecorder;
 import com.x.down.net.HttpErrorException;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 abstract class BaseExecuteRequest implements Runnable {
     protected final AutoRetryRecorder autoRetryRecorder;
-    protected volatile boolean isCancel = false;
+    private final AtomicBoolean cancelAtomic = new AtomicBoolean(false);
 
     public BaseExecuteRequest(AutoRetryRecorder autoRetryRecorder) {
         this.autoRetryRecorder = autoRetryRecorder;
@@ -19,60 +22,79 @@ abstract class BaseExecuteRequest implements Runnable {
 
     protected abstract void onCancel();
 
-    protected final void runTask() {
+
+    public final void cancelTask() {
+        cancelAtomic.getAndSet(true);
+    }
+
+    public final void checkIsCancel() {
+        if (cancelAtomic.get()) {
+            throw new CancelTaskException();
+        }
+    }
+
+    private void runTask() throws Throwable {
         try {
-            if (isCancel) {
-                onCancel();
-                return;
-            }
             onExecute();
         } catch (Throwable e) {
-            retryToRun(e);
-        }
-    }
-
-    protected final void retryToRun(Throwable e) {
-        if (isCancel) {
-            onCancel();
-        } else {
+            if (e instanceof RetryTaskException) {
+                retryTask();
+                return;
+            }
+            if (e instanceof CancelTaskException) {
+                throw e;
+            }
             if (autoRetryRecorder.isCanRetry()) {
-                //回调重试
-                onRetry();
-                //决定是否延迟执行重试
-                autoRetryRecorder.sleep();
-                //自动重试下载
-                runTask();
+                retryTask();
             } else {
-                if (e != null) {
-                    onError(e);
-                }
+                throw e;
             }
         }
     }
 
-    protected final void retryToRun(int code, String error) {
-        if (isCancel) {
-            onCancel();
+    private void retryTask() throws Throwable {
+        //回调重试
+        onRetry();
+        //决定是否延迟执行重试
+        if (autoRetryRecorder.sleep()) {
+            throw new CancelTaskException();
+        }
+        runTask();
+    }
+
+    /**
+     * 尝试是否能重试任务
+     * @param code
+     * @param error
+     * @throws Exception
+     */
+    protected final void tryToRetry(int code, String error) throws Exception {
+        if (cancelAtomic.get()) {
+            throw new CancelTaskException();
         } else {
             if (autoRetryRecorder.isCanRetry()) {
-                //回调重试
-                onRetry();
-                //决定是否延迟执行重试
-                autoRetryRecorder.sleep();
                 //自动重试下载
-                runTask();
+                throw new RetryTaskException();
             } else {
-                onError(new HttpErrorException(code, error));
+                throw new HttpErrorException(code, error);
             }
         }
     }
 
     @Override
-    public void run() {
+    public final void run() {
         try {
             runTask();
         } catch (Throwable e) {
-            onError(e);
+            if (e instanceof CancelTaskException) {
+                onCancel();
+            } else {
+                onError(e);
+            }
         }
+        completeRun();
+    }
+
+    protected void completeRun() {
     }
 }

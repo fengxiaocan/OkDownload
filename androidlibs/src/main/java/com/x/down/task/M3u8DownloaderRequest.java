@@ -6,7 +6,7 @@ import com.x.down.base.IConnectRequest;
 import com.x.down.base.IDownloadRequest;
 import com.x.down.core.XDownloadRequest;
 import com.x.down.impl.DownloadListenerDisposer;
-import com.x.down.m3u8.M3U8Constants;
+import com.x.down.listener.OnM3u8ParseIntercept;
 import com.x.down.m3u8.M3U8Info;
 import com.x.down.m3u8.M3U8Ts;
 import com.x.down.m3u8.M3U8Utils;
@@ -46,8 +46,8 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
     }
 
     @Override
-    public void run() {
-        super.run();
+    protected void completeRun() {
+        XDownload.get().removeDownload(tag());
         taskFuture = null;
     }
 
@@ -61,28 +61,30 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         M3U8Info info = null;
         if (httpRequest.isAsM3u8()) {
             info = parseM3U8Info();
+            if (info != null && info.isNeedRedirect()) {
+                info = getM3u8Response(info.getUrl(), false);
+            }
         }
+        checkIsCancel();
+
         if (info == null) {
             info = SerializeProxy.readM3u8Info(httpRequest);
+            if (info != null && info.isNeedRedirect()) {
+                info = getM3u8Response(info.getUrl(), false);
+            }
         }
+
+        checkIsCancel();
 
         //判断一下文件的长度是否获取得到
-        if (info == null || info.getTsList() == null) {
-            if (info == null) {
-                info = new M3U8Info();
-            }
-            info.setUrl(httpRequest.getConnectUrl());
-
-            if (!getM3u8Response(info)) {
+        if (info == null || info.getTsList().size() == 0) {
+            info = getM3u8Response(httpRequest.getConnectUrl(), true);
+            if (info == null || info.getTsList().size() == 0) {
                 return;
             }
-
-            //保存下来
-            SerializeProxy.writeM3u8Info(httpRequest, info);
-            File tempCacheDir = XDownUtils.getTempCacheDir2(request());
-            M3U8Utils.createNetM3U8(getM3u8NetFile(), tempCacheDir, info);
         }
 
+        checkIsCancel();
 
         //判断下载方式
         if (httpRequest.isUseMultiThread() && httpRequest.getDownloadMultiThreadSize() > 1) {
@@ -92,7 +94,6 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             //单线程下载
             SingleDownloadM3u8Task threadTask = new SingleDownloadM3u8Task(httpRequest,
                     listenerDisposer, info);
-            XDownload.get().removeDownload(httpRequest.getTag());
             Future<?> future = XDownload.executorDownloaderQueue().submit(threadTask);
             threadTask.setTaskFuture(future);
             XDownload.get().addDownload(httpRequest.getTag(), threadTask);
@@ -106,8 +107,11 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
      * @return false 需要重试
      * @throws Exception
      */
-    private boolean getM3u8Response(M3U8Info info) throws Exception {
-        HttpURLConnection http = httpRequest.buildConnect(info.getUrl());
+    private M3U8Info getM3u8Response(String baseUrl, boolean retry) throws Exception {
+        HttpURLConnection http = httpRequest.buildConnect(baseUrl);
+
+        checkIsCancel();
+
         int responseCode = http.getResponseCode();
         //判断是否需要重定向
         while (isNeedRedirects(responseCode)) {
@@ -115,24 +119,36 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
             responseCode = http.getResponseCode();
         }
 
+        checkIsCancel();
+
         if (!isSuccess(responseCode)) {
             //获取错误信息
             String stream = readStringStream(http.getErrorStream(), XDownUtils.getInputCharset(http));
             listenerDisposer.onRequestError(this, responseCode, stream);
             //断开请求
             XDownUtils.disconnectHttp(http);
-            //重试
-            retryToRun(responseCode, stream);
-            return false;//不成功,需要重试
+
+            if (retry) {
+                //不成功,需要重试
+                tryToRetry(responseCode, stream);
+            }
+            return null;
         }
 
-        boolean isSuccess = parseNetworkM3U8Info(info, http.getInputStream());
+        M3U8Info info = parseNetworkM3U8Info(baseUrl, http.getInputStream());
         XDownUtils.disconnectHttp(http);
-        if (isSuccess) {
-            return true;
-        } else {
-            return getM3u8Response(info);
+
+        checkIsCancel();
+
+        if (info.isNeedRedirect() && !info.getUrl().equals(baseUrl)) {
+            //防止无限循环
+            return getM3u8Response(info.getUrl(), retry);
         }
+        //保存下来
+        SerializeProxy.writeM3u8Info(httpRequest, info);
+        M3U8Utils.createNetM3U8(getM3u8NetFile(),  info);
+
+        return info;
     }
 
 
@@ -169,6 +185,8 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         String filePath = getFilePath();
         final ReentrantLock lock = new ReentrantLock();
         for (int i = 0; i < info.getTsList().size(); i++) {
+            checkIsCancel();
+
             MultiDownloadM3u8Task task = new MultiDownloadM3u8Task(httpRequest,
                     filePath,
                     info,
@@ -189,8 +207,7 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        XDownload.get().removeDownload(httpRequest.getTag());
-        threadPoolExecutor.shutdown();
+        threadPoolExecutor.shutdownNow();
     }
 
     /**
@@ -199,30 +216,60 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
      * @return
      */
     public boolean checkComplete() {
-        File saveFile = getM3u8NetFile();
-        boolean b = saveFile.exists() && saveFile.length() > 0;
-        if (b) {
+        File save = getFile();
+        if (save.exists() && save.length()>0){
             try {
-                M3U8Info info = M3U8Utils.parseLocalM3u8File(saveFile);
-                for (M3U8Ts ts : info.getTsList()) {
-                    if (ts.hasInitSegment()) {
-                        File file = new File(ts.getInitSegmentName());
-                        if (!file.exists() || file.length() <= 0) {
-                            return false;
-                        }
-                    }
-                    File file = new File(ts.getIndexName());
-                    if (!file.exists() || file.length() <= 0) {
-                        return false;
-                    }
-                }
+                M3U8Utils.parseLocalM3u8File(save);
                 return true;
             } catch (Exception e) {
-                e.printStackTrace();
+
+            }
+        }
+        M3U8Info info = SerializeProxy.readM3u8Info(httpRequest);
+
+        if (info == null) {
+            File saveFile = getM3u8NetFile();
+            boolean b = saveFile.exists() && saveFile.length() > 0;
+            if (!b) return false;
+            try {
+                info = M3U8Utils.parseLocalM3u8File(saveFile);
+            } catch (Exception e) {
                 return false;
             }
         }
-        return false;
+
+        File m3u8Dir = httpRequest.getM3u8Dir();
+        for (M3U8Ts ts : info.getTsList()) {
+            if (ts.hasInitSegment()) {
+                File file = ts.getInitSegmentFile(m3u8Dir);
+                if (!file.exists()) {
+                    return false;
+                }
+                if (ts.getInitSegmentLength() <= 0) {
+                    return false;
+                }
+                if (file.length() < ts.getInitSegmentLength()) {
+                    return false;
+                }
+            }
+            if (ts.hasKey()) {
+                File file = ts.getInitSegmentFile(m3u8Dir);
+                if (!file.exists() || file.length() == 0) {
+                    return false;
+                }
+            }
+            File file = ts.getTsFile(m3u8Dir);
+            if (!file.exists()) {
+                return false;
+            }
+            if (ts.getTsSize() <= 0) {
+                return false;
+            }
+            if (file.length() < ts.getTsSize()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -252,7 +299,10 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
 
     @Override
     public boolean cancel() {
-        isCancel = true;
+        cancelTask();
+        if (threadPoolExecutor != null) {
+            threadPoolExecutor.shutdownNow();
+        }
         if (taskFuture != null) {
             return taskFuture.cancel(true);
         }
@@ -271,11 +321,12 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
 
     /**
      * 保存m3u8网络信息的文件
+     *
      * @return
      */
-    private File getM3u8NetFile(){
+    private File getM3u8NetFile() {
         //保存m3u8信息
-        return new File(getFile().getAbsolutePath()+ "_net.m3u8");
+        return new File(getFile().getAbsolutePath() + "_net.m3u8");
     }
 
     private File getFile() {
@@ -288,48 +339,70 @@ final class M3u8DownloaderRequest extends HttpDownloadRequest implements IDownlo
     }
 
     private M3U8Info parseM3U8Info() throws Exception {
-        M3U8Info info = null;
+        String baseUrl = httpRequest.getConnectUrl();
         if (httpRequest.getM3u8Info() != null) {
-            info = new M3U8Info();
-            info.setUrl(httpRequest.getConnectUrl());
             BufferedReader bufferedReader = null;
             try {
                 bufferedReader = new BufferedReader(new StringReader(httpRequest.getM3u8Info()));
-                if (!parseNetworkM3U8Info(info, bufferedReader)) {
-                    info = null;
-                }
+                return parseNetworkM3U8Info(baseUrl, bufferedReader);
             } finally {
                 XDownUtils.closeIo(bufferedReader);
             }
         }
-        if (info == null && httpRequest.getM3u8Path() != null) {
-            info = new M3U8Info();
+        if (httpRequest.getM3u8Path() != null) {
             BufferedReader bufferedReader = null;
             try {
                 bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(httpRequest.getM3u8Path())));
-                if (!parseNetworkM3U8Info(info, bufferedReader)) {
-                    info = null;
-                }
+                return parseNetworkM3U8Info(baseUrl, bufferedReader);
             } finally {
                 XDownUtils.closeIo(bufferedReader);
             }
         }
-        return info;
+        return null;
     }
 
-    private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, InputStream inputStream) throws Exception {
+    /**
+     * 解析网络的m3u8文件
+     *
+     * @param baseUrl
+     * @return
+     * @throws Exception
+     */
+    private M3U8Info parseNetworkM3U8Info(String baseUrl, InputStream inputStream) throws Exception {
+        OnM3u8ParseIntercept intercept = httpRequest.getOnM3u8ParseIntercept();
         BufferedReader bufferedReader = null;
         try {
             bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-            return M3U8Utils.parseNetworkM3U8Info(m3U8Info, bufferedReader, httpRequest.getOnM3u8ParseIntercept());
+            if (intercept != null) {
+                M3U8Info info = intercept.intercept(bufferedReader);
+                if (info != null && !info.isNeedRedirect() && info.getTsList().size() > 0) {
+                    return info;
+                }
+            }
+            return M3U8Utils.parseNetworkM3U8Info(baseUrl, bufferedReader);
         } finally {
             XDownUtils.closeIo(bufferedReader);
         }
     }
 
-    private boolean parseNetworkM3U8Info(M3U8Info m3U8Info, BufferedReader reader) throws Exception {
+    /**
+     * 解析已经下载在本地的m3u8文件
+     *
+     * @param baseUrl
+     * @param reader
+     * @return
+     * @throws Exception
+     */
+    private M3U8Info parseNetworkM3U8Info(String baseUrl, BufferedReader reader) throws Exception {
+        OnM3u8ParseIntercept intercept = httpRequest.getOnM3u8ParseIntercept();
         try {
-            return M3U8Utils.parseNetworkM3U8Info(m3U8Info, reader,httpRequest.getOnM3u8ParseIntercept());
+            if (intercept != null) {
+                M3U8Info info = intercept.intercept(reader);
+                if (info != null && !info.isNeedRedirect() && info.getTsList().size() > 0) {
+                    return info;
+                }
+            }
+            return M3U8Utils.parseNetworkM3U8Info(baseUrl, reader);
         } finally {
             XDownUtils.closeIo(reader);
         }

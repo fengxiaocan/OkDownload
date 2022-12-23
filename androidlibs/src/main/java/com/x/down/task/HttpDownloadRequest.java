@@ -31,12 +31,18 @@ abstract class HttpDownloadRequest extends BaseHttpRequest {
     //获取文件长度
     protected HttpURLConnection getDownloaderLong(XDownloadRequest request) throws Exception {
         HttpURLConnection http = request.buildConnect();
+
+        checkIsCancel();
+
         int responseCode = http.getResponseCode();
 
         while (isNeedRedirects(responseCode)) {
             http = redirectsConnect(http, request);
             responseCode = http.getResponseCode();
         }
+
+        checkIsCancel();
+
         //优先获取文件长度再回调
         long contentLength = XDownUtils.getContentLength(http);
         onConnecting(http, contentLength);
@@ -45,7 +51,12 @@ abstract class HttpDownloadRequest extends BaseHttpRequest {
             XDownUtils.disconnectHttp(http);
             http = request.buildConnect();
             http.setRequestProperty("Accept-Encoding", "identity");
+
+            checkIsCancel();
+
             http.connect();
+
+            checkIsCancel();
 
             contentLength = XDownUtils.getContentLength(http);
             onConnecting(http, contentLength);
@@ -57,20 +68,23 @@ abstract class HttpDownloadRequest extends BaseHttpRequest {
         return http;
     }
 
-    protected final boolean readInputStream(InputStream is, OutputStream os) throws IOException {
+    /**
+     * @param is
+     * @param os
+     * @return COMPLETE 为完成操作,CANCEL 为取消操作,需要退出循环
+     * @throws IOException
+     */
+    protected final void readInputStream(InputStream is, OutputStream os) throws IOException {
         try {
             byte[] bytes = new byte[byteArraySize];
             int length;
             while ((length = is.read(bytes)) > 0) {
-                if (isCancel) {
-                    onCancel();
-                    return false;
-                }
+                checkIsCancel();
+
                 os.write(bytes, 0, length);
                 os.flush();
                 onProgress(length);
             }
-            return true;
         } finally {
             XDownUtils.closeIo(is);
             XDownUtils.closeIo(os);

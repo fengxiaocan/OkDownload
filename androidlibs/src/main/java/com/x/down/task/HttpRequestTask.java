@@ -14,6 +14,7 @@ import com.x.down.impl.RequestListenerDisposer;
 import com.x.down.made.AutoRetryRecorder;
 import com.x.down.tool.XDownUtils;
 
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.concurrent.Future;
 
@@ -36,8 +37,7 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
     }
 
     @Override
-    public void run() {
-        super.run();
+    protected void completeRun() {
         XDownload.get().removeRequest(httpRequest.getTag());
         taskFuture = null;
     }
@@ -46,24 +46,17 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
     protected void onExecute() throws Exception {
         HttpURLConnection http = httpRequest.buildConnect();
 
+        checkIsCancel();
+
         //POST请求
         if (httpRequest.isPost()) {
-            RequestBody body = httpRequest.getRequestBody();
-            if (body != null) {
-                MediaType mediaType = body.contentType();
-                if (mediaType.getType() != null) {
-                    http.setRequestProperty("Content-Type", mediaType.getType());
-                }
-                if (body.contentLength() != -1) {
-                    http.setRequestProperty("Content-Length", String.valueOf(body.contentLength()));
-                }
-                HttpIoSink ioSink = new HttpIoSink(http.getOutputStream());
-                body.writeTo(ioSink);
-            }
+            setBodyRequest(http);
         }
-
-        listenerDisposer.onConnecting(this, getHeaders(http));
+        Headers responseHeader = getHeaders(http);
+        listenerDisposer.onConnecting(this, responseHeader);
         int responseCode = http.getResponseCode();
+
+        checkIsCancel();
 
         //是否需要重定向
         while (isNeedRedirects(responseCode)) {
@@ -72,36 +65,43 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
                 http.setRequestMethod("GET");
             }
             http.connect();
-            listenerDisposer.onConnecting(this, getHeaders(http));
+            responseHeader = getHeaders(http);
+            listenerDisposer.onConnecting(this, responseHeader);
 
             if (http.getRequestMethod().equals("POST")) {
-                RequestBody body = httpRequest.getRequestBody();
-                if (body != null) {
-                    MediaType mediaType = body.contentType();
-                    if (mediaType.getType() != null) {
-                        http.setRequestProperty("Content-Type", mediaType.getType());
-                    }
-                    if (body.contentLength() != -1) {
-                        http.setRequestProperty("Content-Length", String.valueOf(body.contentLength()));
-                    }
-                    HttpIoSink ioSink = new HttpIoSink(http.getOutputStream());
-                    body.writeTo(ioSink);
-                }
+                setBodyRequest(http);
             }
             responseCode = http.getResponseCode();
         }
-        //请求头
-        Headers headers = getHeaders(http);
+
+        checkIsCancel();
 
         if (isSuccess(responseCode)) {
             String stream = readStringStream(http.getInputStream(), XDownUtils.getInputCharset(http));
             XDownUtils.disconnectHttp(http);
-            listenerDisposer.onResponse(this, Response.builderSuccess(httpRequest.getConnectUrl(), stream, responseCode, headers));
+            listenerDisposer.onResponse(this, Response.builderSuccess(httpRequest.getConnectUrl(), stream, responseCode, responseHeader));
         } else {
             String error = readStringStream(http.getErrorStream(), XDownUtils.getInputCharset(http));
             XDownUtils.disconnectHttp(http);
-            listenerDisposer.onResponse(this, Response.builderFailure(httpRequest.getConnectUrl(), responseCode, headers, error));
-            retryToRun(responseCode,error);
+            listenerDisposer.onResponse(this, Response.builderFailure(httpRequest.getConnectUrl(), responseCode, responseHeader, error));
+            tryToRetry(responseCode, error);
+        }
+    }
+
+    private void setBodyRequest(HttpURLConnection http) throws IOException {
+        RequestBody body = httpRequest.getRequestBody();
+        if (body != null) {
+            MediaType mediaType = body.contentType();
+            if (mediaType.getType() != null) {
+                http.setRequestProperty("Content-Type", mediaType.getType());
+            }
+            if (body.contentLength() != -1) {
+                http.setRequestProperty("Content-Length", String.valueOf(body.contentLength()));
+            }
+            HttpIoSink ioSink = new HttpIoSink(http.getOutputStream());
+            body.writeTo(ioSink);
+
+            checkIsCancel();
         }
     }
 
@@ -137,7 +137,7 @@ class HttpRequestTask extends BaseHttpRequest implements IRequest, IConnectReque
 
     @Override
     public boolean cancel() {
-        isCancel = true;
+       cancelTask();
         if (taskFuture != null) {
             return taskFuture.cancel(true);
         }

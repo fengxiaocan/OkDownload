@@ -1,7 +1,5 @@
 package com.x.down.made;
 
-import com.x.down.tool.XDownUtils;
-
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class AutoRetryRecorder {
@@ -27,9 +25,15 @@ public class AutoRetryRecorder {
         return false;
     }
 
-    public void sleep() {
+    public boolean sleep() {
         if (autoRetryInterval > 1) {
-            XDownUtils.sleep(autoRetryInterval);
+            try {
+                Thread.sleep(autoRetryInterval);
+                return false;
+            } catch (InterruptedException e) {
+                return true;
+            }
         }
+        return false;
     }
 }

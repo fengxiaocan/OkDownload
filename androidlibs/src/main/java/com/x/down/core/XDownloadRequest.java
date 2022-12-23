@@ -9,8 +9,9 @@ import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.listener.OnDownloadListener;
 import com.x.down.listener.OnM3u8ParseIntercept;
-import com.x.down.listener.OnMergeFileListener;
+import com.x.down.listener.OnMergeM3u8Listener;
 import com.x.down.listener.OnProgressListener;
+import com.x.down.listener.OnRequestInterceptor;
 import com.x.down.listener.OnSpeedListener;
 import com.x.down.listener.SSLCertificateFactory;
 import com.x.down.task.ThreadTaskFactory;
@@ -61,9 +62,11 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
     //下载速度监听
     protected OnSpeedListener onSpeedListener;
     //文件合并监听
-    protected OnMergeFileListener onMergeFileListener;
+    protected OnMergeM3u8Listener onMergeM3u8Listener;
     //m3u8解析拦截器
     protected OnM3u8ParseIntercept onM3u8ParseIntercept;
+    //请求拦截器
+    protected OnRequestInterceptor onRequestInterceptor;
     //是否强制为m3u8
     protected boolean asM3u8 = false;
     //m3u8信息的文件路径
@@ -104,6 +107,14 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
             }
         }
         return saveName;
+    }
+
+    public String getM3u8DirName(){
+        return getSaveName().replace(".m3u8", "");
+    }
+
+    public File getM3u8Dir(){
+        return new File(getSaveDir(), getM3u8DirName());
     }
 
     public String getSaveDir() {
@@ -212,14 +223,19 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
     }
 
     @Override
-    public HttpDownload setOnMegerFileListener(OnMergeFileListener listener) {
-        onMergeFileListener = listener;
+    public HttpDownload setOnMegerFileListener(OnMergeM3u8Listener listener) {
+        onMergeM3u8Listener = listener;
         return this;
     }
 
     @Override
     public HttpDownload setOnM3u8ParseIntercept(OnM3u8ParseIntercept listener) {
         onM3u8ParseIntercept = listener;
+        return this;
+    }
+
+    public HttpDownload setOnRequestInterceptor(OnRequestInterceptor listener) {
+        this.onRequestInterceptor = listener;
         return this;
     }
 
@@ -427,8 +443,8 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
         return onSpeedListener;
     }
 
-    public OnMergeFileListener getOnMegerFileListener() {
-        return onMergeFileListener;
+    public OnMergeM3u8Listener getOnMergeM3u8Listener() {
+        return onMergeM3u8Listener;
     }
 
     public OnM3u8ParseIntercept getOnM3u8ParseIntercept() {
@@ -490,6 +506,10 @@ public class XDownloadRequest extends BaseRequest implements HttpDownload, Build
 
         http.setUseCaches(false);
         http.setDoInput(true);
+
+        if (onRequestInterceptor != null){
+            http = onRequestInterceptor.onIntercept(http);
+        }
         return http;
     }
 

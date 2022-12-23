@@ -5,6 +5,7 @@ import com.x.down.data.Headers;
 import com.x.down.data.Params;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnConnectListener;
+import com.x.down.listener.OnRequestInterceptor;
 import com.x.down.listener.OnResponseListener;
 import com.x.down.listener.SSLCertificateFactory;
 import com.x.down.task.ThreadTaskFactory;
@@ -20,6 +21,7 @@ public class XHttpRequest extends BaseRequest implements HttpConnect, BuilderURL
     protected boolean useCaches = false;//是否使用缓存
     protected OnConnectListener onConnectListeners;
     protected OnResponseListener onResponseListeners;
+    protected OnRequestInterceptor onRequestInterceptor;
 
     protected XHttpRequest(String baseUrl) {
         super(baseUrl);
@@ -58,6 +60,12 @@ public class XHttpRequest extends BaseRequest implements HttpConnect, BuilderURL
     @Override
     public HttpConnect setOnConnectListener(OnConnectListener listener) {
         onConnectListeners = listener;
+        return this;
+    }
+
+    @Override
+    public HttpConnect setOnRequestInterceptor(OnRequestInterceptor listener) {
+        onRequestInterceptor = listener;
         return this;
     }
 
@@ -199,6 +207,10 @@ public class XHttpRequest extends BaseRequest implements HttpConnect, BuilderURL
         http.setUseCaches(useCaches);
         http.setDoInput(true);
         http.setDoOutput(method == Method.POST);
+
+        if (onRequestInterceptor != null){
+            http = onRequestInterceptor.onIntercept(http);
+        }
         return http;
     }
 

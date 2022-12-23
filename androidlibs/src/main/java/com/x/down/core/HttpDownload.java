@@ -6,8 +6,9 @@ import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnDownloadConnectListener;
 import com.x.down.listener.OnDownloadListener;
 import com.x.down.listener.OnM3u8ParseIntercept;
-import com.x.down.listener.OnMergeFileListener;
+import com.x.down.listener.OnMergeM3u8Listener;
 import com.x.down.listener.OnProgressListener;
+import com.x.down.listener.OnRequestInterceptor;
 import com.x.down.listener.OnSpeedListener;
 import com.x.down.listener.SSLCertificateFactory;
 
@@ -180,9 +181,17 @@ public interface HttpDownload extends IConnect {
      * @param listener
      * @return
      */
-    HttpDownload setOnMegerFileListener(OnMergeFileListener listener);
+    HttpDownload setOnMegerFileListener(OnMergeM3u8Listener listener);
 
     HttpDownload setOnM3u8ParseIntercept(OnM3u8ParseIntercept listener);
+
+    /**
+     * 设置请求拦截器
+     *
+     * @param listener
+     * @return
+     */
+    HttpDownload setOnRequestInterceptor(OnRequestInterceptor listener);
 
     /**
      * 删除当前下载

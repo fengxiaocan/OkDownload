@@ -12,11 +12,12 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 final class ExecuteQueueTask implements Runnable, IConnectRequest {
     private final XExecuteRequestQueue requestQueue;
     private final XExecuteRequestQueues thenQueue;
-    private volatile boolean isCancel = false;
+    private final AtomicBoolean cancelAtomic = new AtomicBoolean(false);
     private volatile Future taskFuture;
 
     public ExecuteQueueTask(XExecuteRequestQueue requestQueue) {
@@ -29,19 +30,19 @@ final class ExecuteQueueTask implements Runnable, IConnectRequest {
         this.thenQueue = thenQueue;
     }
 
-    public final void setTaskFuture(Future taskFuture) {
+    public void setTaskFuture(Future taskFuture) {
         this.taskFuture = taskFuture;
     }
 
     @Override
     public void run() {
-        if (isCancel) return;
+        if (cancelAtomic.get()) return;
 
         if (requestQueue != null) {
             runQueueTask(requestQueue, requestQueue.getTag());
         }
 
-        while (!isCancel && thenQueue != null && thenQueue.checkSize()) {
+        while (!cancelAtomic.get() && thenQueue != null && thenQueue.checkSize()) {
             //开启下一轮任务队列
             XExecuteRequestQueue pollFirst = thenQueue.pollFirst();
             runQueueTask(pollFirst, thenQueue.getTag());
@@ -79,7 +80,7 @@ final class ExecuteQueueTask implements Runnable, IConnectRequest {
         //清除标记,防止内存泄漏
         XDownload.get().removeExecuteRequest(queueTag);
         //线程池停止回收
-        poolExecutor.shutdown();
+        poolExecutor.shutdownNow();
     }
 
     //清除标记,防止内存泄漏
@@ -95,7 +96,7 @@ final class ExecuteQueueTask implements Runnable, IConnectRequest {
 
     @Override
     public boolean cancel() {
-        isCancel = true;
+        cancelAtomic.getAndSet(true);
         if (taskFuture != null) {
             return taskFuture.cancel(true);
         }

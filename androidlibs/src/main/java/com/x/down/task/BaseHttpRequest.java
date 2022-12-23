@@ -30,6 +30,9 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
      */
     protected HttpURLConnection redirectsConnect(HttpURLConnection connection, BuilderURLConnection request)
             throws Exception {
+
+        checkIsCancel();
+
         if (connection != null) {
             //获取指向
             String location = connection.getHeaderField("Location");
@@ -37,6 +40,9 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
             String redirectsCookie = connection.getHeaderField("Set-Cookie");
             //获取重定向地址
             String redirectsUrl = getRedirectsUrl(connection.getURL(), location);
+
+            checkIsCancel();
+
             //断开原来的连接
             XDownUtils.disconnectHttp(connection);
             //建立新的连接
@@ -57,6 +63,8 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
      * @return
      */
     protected final String getRedirectsUrl(URL url, String location) {
+        checkIsCancel();
+
         String redirectsUrl;
         if (location.startsWith("http")) {
             redirectsUrl = location;
@@ -107,6 +115,7 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
     }
 
     protected final boolean isNeedRedirects(int code) {
+        checkIsCancel();
         switch (code) {
             case 301:
                 //客户请求的文档在其他地方，新的URL在Location头中给出，浏览器应该自动地访问新的URL。
@@ -142,7 +151,6 @@ abstract class BaseHttpRequest extends BaseExecuteRequest {
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(new InputStreamReader(is, charset));
-
             StringBuilder builder = new StringBuilder();
             char[] temp = new char[1024 * 8];
             int length;

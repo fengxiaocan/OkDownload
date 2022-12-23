@@ -25,11 +25,8 @@ public class ExampleUnitTest {
         BufferedReader bufferedReader = null;
         try {
             bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-            M3U8Info info = new M3U8Info();
-            boolean b = M3U8Utils.parseNetworkM3U8Info(info, bufferedReader, null);
-            System.err.println("success=" + b);
+            M3U8Info info = M3U8Utils.parseNetworkM3U8Info(null, bufferedReader);
             System.err.println(info.toString());
-
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

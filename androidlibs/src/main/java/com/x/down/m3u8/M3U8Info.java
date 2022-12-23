@@ -6,11 +6,12 @@ import java.util.ArrayList;
 public class M3U8Info implements Serializable {
 
     private String mUrl;
-    private final ArrayList<M3U8Ts> mTsList;
+    private final ArrayList<M3U8Ts> mTsList = new ArrayList<>();
     private float mTargetDuration;
     private int mInitSequence;
     private int mVersion = 3;
     private boolean mHasEndList;
+    private boolean isNeedRedirect = false;
 
     public M3U8Info() {
         this("");
@@ -19,7 +20,6 @@ public class M3U8Info implements Serializable {
     public M3U8Info(String url) {
         mUrl = url;
         mInitSequence = 0;
-        mTsList = new ArrayList<>();
     }
 
     public String getUrl() {
@@ -68,6 +68,14 @@ public class M3U8Info implements Serializable {
 
     public boolean hasEndList() {
         return mHasEndList;
+    }
+
+    public boolean isNeedRedirect() {
+        return isNeedRedirect;
+    }
+
+    public void setNeedRedirect(boolean needRedirect) {
+        isNeedRedirect = needRedirect;
     }
 
     public long getDuration() {

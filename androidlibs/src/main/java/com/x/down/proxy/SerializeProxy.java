@@ -90,7 +90,7 @@ public final class SerializeProxy {
      */
     public static void deleteM3u8Info(XDownloadRequest request) {
         File tempCacheDir = XDownUtils.getTempCacheDir(request);
-        new File(tempCacheDir, M3U8_INFO_NAME).deleteOnExit();
+        new File(tempCacheDir, M3U8_INFO_NAME).delete();
     }
 
     /**

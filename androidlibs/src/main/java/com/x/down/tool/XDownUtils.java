@@ -66,24 +66,6 @@ public class XDownUtils {
         }
     }
 
-    public static void sleep(long ms) {
-        long start = System.currentTimeMillis();
-        long duration = ms;
-        boolean interrupted = false;
-        do {
-            try {
-                Thread.sleep(duration);
-            } catch (InterruptedException e) {
-                interrupted = true;
-            }
-            duration = start + ms - System.currentTimeMillis();
-        } while (duration > 0);
-
-        if (interrupted) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
     public static String getInputCharset(HttpURLConnection connection) {
         if (connection != null) {
             String type = connection.getHeaderField("Content-Type");
@@ -360,6 +342,11 @@ public class XDownUtils {
         return sequence == null || "".equals(sequence);
     }
 
+    /**
+     * 获取后缀名字
+     * @param name
+     * @return
+     */
     public static String getSuffixName(String name) {
         if (isEmpty(name)) {
             return "";

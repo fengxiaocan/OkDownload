@@ -5,6 +5,7 @@ import com.x.down.data.Headers;
 import com.x.down.data.Params;
 import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnConnectListener;
+import com.x.down.listener.OnRequestInterceptor;
 import com.x.down.listener.OnResponseListener;
 import com.x.down.listener.SSLCertificateFactory;
 
@@ -86,6 +87,14 @@ public interface HttpConnect extends IConnect {
      * @return
      */
     HttpConnect setOnConnectListener(OnConnectListener listener);
+
+    /**
+     * 设置请求拦截器
+     *
+     * @param listener
+     * @return
+     */
+    HttpConnect setOnRequestInterceptor(OnRequestInterceptor listener);
 
     /**
      * 修改为POST请求

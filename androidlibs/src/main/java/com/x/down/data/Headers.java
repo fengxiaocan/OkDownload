@@ -1,13 +1,15 @@
 package com.x.down.data;
 
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class Headers {
-    private final HashMap<String, List<String>> headerMap;
+    private final Map<String, List<String>> headerMap;
 
     public Headers() {
         headerMap = new HashMap<>();
@@ -15,6 +17,14 @@ public class Headers {
 
     public Headers(Headers other) {
         this.headerMap = other.headerMap;
+    }
+
+    public Headers(Map<String, List<String>> map) {
+        this.headerMap = map;
+    }
+
+    public Headers(HttpURLConnection connection) {
+        headerMap = connection.getHeaderFields();
     }
 
     public Headers clear() {

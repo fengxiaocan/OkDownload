@@ -47,7 +47,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
         this.saveFile = saveFile;
         this.m3U8Info = m3U8Info;
         this.m3U8Ts = m3U8Info.getTsList().get(index);
-        this.tempFile = new File(tempDir, m3U8Ts.getIndexName());
+        this.tempFile = m3U8Ts.getTsFile(tempDir);
         this.multiDisposer = listener;
         this.lock = lock;
     }
@@ -57,8 +57,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
     }
 
     @Override
-    public void run() {
-        super.run();
+    protected void completeRun() {
         XDownload.get().removeMultiDownload(tag(), this);
         taskFuture = null;
     }
@@ -67,23 +66,32 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
     protected void onExecute() throws Throwable {
         sofarSeg.set(0);
         sofar.set(0);
+
+        if (m3U8Ts.hasKey()) {
+            //下载Key信息
+            File keyFile = m3U8Ts.getKeyFile(tempFile.getParentFile());
+            checkIsCancel();
+            downloadTs(keyFile, m3U8Ts.getKeyUri(), 0,false);
+        }
+
         if (m3U8Ts.hasInitSegment()) {
             //下载MAP片段信息
-            File tsSegFile = new File(tempFile.getParentFile(), m3U8Ts.getInitSegmentName());
+            File tsSegFile = m3U8Ts.getInitSegmentFile(tempFile.getParentFile());
+
             //先获取保存的长度
             long length = m3U8Ts.getInitSegmentLength();
             if (length <= 0) {
                 length = downloadLong(m3U8Ts.getInitSegmentUri());
                 m3U8Ts.setInitSegmentLength(length);
                 //更新长度保存到本地
-                lock.unlock();
+                lock.lock();
                 try {
                     SerializeProxy.writeM3u8Info(request, m3U8Info);
                 } finally {
                     lock.unlock();
                 }
             }
-            downloadTs(tsSegFile, m3U8Ts.getInitSegmentUri(), length, true);
+            downloadTs(tsSegFile, m3U8Ts.getInitSegmentUri(), length, true) ;
         }
         //先获取保存的长度
         long length = m3U8Ts.getTsSize();
@@ -91,7 +99,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
             length = downloadLong(m3U8Ts.getUrl());
             m3U8Ts.setTsSize(length);
             //更新长度保存到本地
-            lock.unlock();
+            lock.lock();
             try {
                 SerializeProxy.writeM3u8Info(request, m3U8Info);
             } finally {
@@ -133,6 +141,8 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
             file.getParentFile().mkdirs();
         }
 
+        checkIsCancel();
+
         HttpURLConnection http = request.buildConnect(url);
 
         if (start > 0) {
@@ -141,6 +151,8 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
 
         http.connect();
         multiDisposer.onConnecting(this, getHeaders(http));
+
+        checkIsCancel();
 
         //获取响应code
         int responseCode = http.getResponseCode();
@@ -156,9 +168,8 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
                 }
             }
             FileOutputStream os = new FileOutputStream(file, acceptRanges);
-            if (!readInputStream(http.getInputStream(), os, isSeg)) {
-                return;
-            }
+            readInputStream(http.getInputStream(), os, isSeg);
+
             if (isSeg) {
                 sofarSeg.set(length);
             } else {
@@ -173,7 +184,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
             multiDisposer.onRequestError(this, responseCode, stream);
             XDownUtils.disconnectHttp(http);
             //失败重试
-            retryToRun(responseCode, stream);
+            tryToRetry(responseCode, stream);
         }
     }
 
@@ -213,21 +224,23 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
         return contentLength;
     }
 
-
-    protected boolean readInputStream(InputStream is, OutputStream os, final boolean isSeg) throws IOException {
+    /**
+     * @param is
+     * @param os
+     * @param isSeg
+     * @return true 为完成操作,false为取消操作,需要退出循环
+     * @throws IOException
+     */
+    protected void readInputStream(InputStream is, OutputStream os, final boolean isSeg) throws IOException {
         try {
             byte[] bytes = new byte[byteArraySize];
             int length;
             while ((length = is.read(bytes)) > 0) {
-                if (isCancel) {
-                    onCancel();
-                    return false;
-                }
+                checkIsCancel();
                 os.write(bytes, 0, length);
                 os.flush();
                 onProgress(length, isSeg);
             }
-            return true;
         } finally {
             XDownUtils.closeIo(is);
             XDownUtils.closeIo(os);
@@ -276,7 +289,7 @@ final class MultiDownloadM3u8Task extends HttpDownloadRequest implements MultiDo
 
     @Override
     public boolean cancel() {
-        isCancel = true;
+        cancelTask();
         if (taskFuture != null) {
             return taskFuture.cancel(true);
         }

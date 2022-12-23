@@ -5,6 +5,7 @@ import com.x.down.dispatch.Schedulers;
 import com.x.down.listener.OnExecuteQueueListener;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ExecuteQueueDisposer {
 
@@ -12,8 +13,8 @@ public final class ExecuteQueueDisposer {
     private final CountDownLatch countDownLatch;
     private final int taskCount;//总任务数
     private final OnExecuteQueueListener executeQueueListener;
-    private volatile int completeIndex = 0;//执行完成位置
-    private volatile int counting = 0;//执行到的位置
+    private AtomicInteger completeIndex = new AtomicInteger(0);//执行完成位置
+    private AtomicInteger counting = new AtomicInteger(0);//执行到的位置
 
     public ExecuteQueueDisposer(XExecuteRequestQueue queue, CountDownLatch countDownLatch, int taskCount) {
         this.executeQueueListener = queue.getExecuteQueueListener();
@@ -23,35 +24,35 @@ public final class ExecuteQueueDisposer {
     }
 
     public synchronized void onCancel() {
-        counting++;
+        counting.getAndIncrement();
         extracted();
         countDownLatch.countDown();
     }
 
     public synchronized void onError() {
-        counting++;
+        counting.getAndIncrement();
         extracted();
         countDownLatch.countDown();
     }
 
     public synchronized void onComplete() {
-        counting++;
-        completeIndex++;
+        counting.getAndIncrement();
+        completeIndex.getAndIncrement();
         extracted();
         countDownLatch.countDown();
     }
 
     private synchronized void extracted() {
-        if (counting >= taskCount && executeQueueListener != null) {
+        if (counting.get() >= taskCount && executeQueueListener != null) {
             if (schedulers != null) {
                 schedulers.schedule(new Runnable() {
                     @Override
                     public void run() {
-                        executeQueueListener.onComplete(taskCount, completeIndex);
+                        executeQueueListener.onComplete(taskCount, completeIndex.get());
                     }
                 });
             } else {
-                executeQueueListener.onComplete(taskCount, completeIndex);
+                executeQueueListener.onComplete(taskCount, completeIndex.get());
             }
         }
     }

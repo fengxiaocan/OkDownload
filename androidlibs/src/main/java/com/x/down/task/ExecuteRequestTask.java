@@ -42,8 +42,7 @@ class ExecuteRequestTask extends BaseExecuteRequest implements IExecute, IConnec
     }
 
     @Override
-    public void run() {
-        super.run();
+    protected void completeRun() {
         if (isMulti) {
             XDownload.get().removeMultiDownload(xExecuteRequest.getTag(), this);
         } else {
@@ -93,7 +92,7 @@ class ExecuteRequestTask extends BaseExecuteRequest implements IExecute, IConnec
 
     @Override
     public boolean cancel() {
-        isCancel = true;
+       cancelTask();
         if (taskFuture != null) {
             return taskFuture.cancel(true);
         }

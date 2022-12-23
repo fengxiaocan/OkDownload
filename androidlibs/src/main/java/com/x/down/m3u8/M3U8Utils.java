@@ -2,15 +2,13 @@ package com.x.down.m3u8;
 
 
 import com.x.down.core.XDownloadRequest;
-import com.x.down.listener.OnM3u8ParseIntercept;
-import com.x.down.listener.OnMergeFileListener;
+import com.x.down.listener.OnMergeM3u8Listener;
 import com.x.down.tool.XDownUtils;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -24,43 +22,28 @@ public class M3U8Utils {
 
     public static void mergeM3u8(XDownloadRequest request, File saveFile, M3U8Info info) throws Exception {
         File tempDir = XDownUtils.getTempCacheDir2(request);
-        File file = new File(saveFile.getParentFile(), request.getSaveName().replace(".m3u8", ""));
-        file.getParentFile().mkdirs();
-        tempDir.renameTo(file);
-        createLocalM3U8File(saveFile, file, info);
-        OnMergeFileListener listener = request.getOnMegerFileListener();
+        File m3u8Dir = new File(saveFile.getParentFile(), request.getSaveName().replace(".m3u8", ""));
+        m3u8Dir.getParentFile().mkdirs();
+        tempDir.renameTo(m3u8Dir);
+        createLocalM3U8File(saveFile, m3u8Dir, info);
+
+        OnMergeM3u8Listener listener = request.getOnMergeM3u8Listener();
         if (listener != null) {
-            List<File> tsList = new ArrayList<>();
-            for (M3U8Ts m3u8Ts : info.getTsList()) {
-                if (m3u8Ts.hasInitSegment()) {
-                    tsList.add(new File(file, m3u8Ts.getInitSegmentName()));
-                }
-                if (m3u8Ts.hasKey()) {
-                    if (m3u8Ts.getMethod() != null) {
-                        if (m3u8Ts.getKeyUri() != null) {
-                            File keyFile = new File(file, m3u8Ts.getLocalKeyUri());
-                            if (!m3u8Ts.isMessyKey() && keyFile.exists()) {
-                                tsList.add(keyFile);
-                            }
-                        }
-                    }
-                }
-                tsList.add(new File(file, m3u8Ts.getIndexName()));
-            }
-            listener.onM3u8Merge(saveFile, tsList);
+            listener.onM3u8Merge(request,m3u8Dir,info);
         }
     }
 
     /**
      * 解析网络上的M3u8信息
      *
-     * @param m3U8Info
+     * @param baseUrl
      * @param bufferedReader
-     * @return
+     * @return M3U8Info
      * @throws Exception
      */
-    public static boolean parseNetworkM3U8Info(M3U8Info m3U8Info, BufferedReader bufferedReader, OnM3u8ParseIntercept intercept) throws Exception {
-        String baseUrl = m3U8Info.getUrl();
+    public static M3U8Info parseNetworkM3U8Info(final String baseUrl, BufferedReader bufferedReader) throws Exception {
+        M3U8Info m3U8Info = new M3U8Info();
+        m3U8Info.setUrl(baseUrl);
         float tsDuration = 0;
         int targetDuration = 0;
         int tsIndex = 0;
@@ -80,9 +63,6 @@ public class M3U8Utils {
         String tempWaitKeyUri = null;
         while ((line = bufferedReader.readLine()) != null) {
             line = line.trim();
-            if (intercept != null) {
-                line = intercept.intercept(line);
-            }
             if (XDownUtils.isEmpty(line)) {
                 continue;
             }
@@ -151,8 +131,9 @@ public class M3U8Utils {
             }
             // It has '#EXT-X-STREAM-INF' tag;
             if (hasStreamInfo) {
+                m3U8Info.setNeedRedirect(true);
                 m3U8Info.setUrl(M3U8Utils.getM3U8AbsoluteUrl(baseUrl, line));
-                return false;
+                return m3U8Info;
             }
             if (Math.abs(tsDuration) < 0.001f) {
                 continue;
@@ -160,7 +141,7 @@ public class M3U8Utils {
             M3U8Ts ts = new M3U8Ts();
 
             if (tempWaitKeyUri != null && XDownUtils.isEmpty(encryptionKeyUri)) {
-                if (line.startsWith("http")){
+                if (line.startsWith("http")) {
                     encryptionKeyUri = M3U8Utils.getM3U8AbsoluteUrl(getHostUrl(line), tempWaitKeyUri);
                 }
             }
@@ -189,7 +170,7 @@ public class M3U8Utils {
         m3U8Info.setVersion(version);
         m3U8Info.setSequence(sequence);
         m3U8Info.setHasEndList(hasEndList);
-        return true;
+        return m3U8Info;
     }
 
     public static void createLocalM3U8File(File saveFile, File tempDir, M3U8Info info) throws IOException {
@@ -207,8 +188,9 @@ public class M3U8Utils {
             for (M3U8Ts m3u8Ts : info.getTsList()) {
                 if (m3u8Ts.hasInitSegment()) {
                     String initSegmentInfo;
-                    String initSegmentFilePath = new File(tempDir, m3u8Ts.getInitSegmentName()).getAbsolutePath();
-                    if (m3u8Ts.getSegmentByteRange() != null) {
+                    String initSegmentFilePath = m3u8Ts.getInitSegmentFile(tempDir).getAbsolutePath();
+
+                    if (!XDownUtils.isEmpty(m3u8Ts.getSegmentByteRange())) {
                         initSegmentInfo = "URI=\"" + initSegmentFilePath + "\"" + ",BYTERANGE=\"" + m3u8Ts.getSegmentByteRange() + "\"";
                     } else {
                         initSegmentInfo = "URI=\"" + initSegmentFilePath + "\"";
@@ -216,17 +198,17 @@ public class M3U8Utils {
                     bfw.write(M3U8Constants.TAG_INIT_SEGMENT + ":" + initSegmentInfo + "\n");
                 }
                 if (m3u8Ts.hasKey()) {
-                    if (m3u8Ts.getMethod() != null) {
+                    if (XDownUtils.isEmpty(m3u8Ts.getMethod())) {
                         String key = "METHOD=" + m3u8Ts.getMethod();
-                        if (m3u8Ts.getKeyUri() != null) {
-                            File keyFile = new File(tempDir, m3u8Ts.getLocalKeyUri());
-                            if (!m3u8Ts.isMessyKey() && keyFile.exists()) {
+                        if (!XDownUtils.isEmpty(m3u8Ts.getKeyUri())) {
+                            File keyFile = m3u8Ts.getKeyFile(tempDir);
+                            if (keyFile.exists()) {
                                 key += ",URI=\"" + keyFile.getAbsolutePath() + "\"";
                             } else {
                                 key += ",URI=\"" + m3u8Ts.getKeyUri() + "\"";
                             }
                         }
-                        if (m3u8Ts.getKeyIV() != null) {
+                        if (XDownUtils.isEmpty(m3u8Ts.getKeyIV())) {
                             key += ",IV=" + m3u8Ts.getKeyIV();
                         }
                         bfw.write(M3U8Constants.TAG_KEY + ":" + key + "\n");
@@ -236,7 +218,7 @@ public class M3U8Utils {
                     bfw.write(M3U8Constants.TAG_DISCONTINUITY + "\n");
                 }
                 bfw.write(M3U8Constants.TAG_MEDIA_DURATION + ":" + m3u8Ts.getDuration() + ",\n");
-                bfw.write(new File(tempDir, m3u8Ts.getIndexName()).getAbsolutePath());
+                bfw.write(m3u8Ts.getTsFile(tempDir).getAbsolutePath());
                 bfw.newLine();
             }
             bfw.write(M3U8Constants.TAG_ENDLIST);
@@ -366,7 +348,7 @@ public class M3U8Utils {
         return matcher.find() ? matcher.group(1) : null;
     }
 
-    public static void createNetM3U8(File m3u8File, File tempDir, M3U8Info m3U8Info) throws IOException {
+    public static void createNetM3U8(File m3u8File, M3U8Info m3U8Info) throws IOException {
         BufferedWriter bfw = null;
         try {
             bfw = new BufferedWriter(new FileWriter(m3u8File, false));
@@ -377,7 +359,7 @@ public class M3U8Utils {
             for (M3U8Ts m3u8Ts : m3U8Info.getTsList()) {
                 if (m3u8Ts.hasInitSegment()) {
                     String initSegmentInfo;
-                    if (m3u8Ts.getSegmentByteRange() != null) {
+                    if (XDownUtils.isEmpty(m3u8Ts.getSegmentByteRange())) {
                         initSegmentInfo = "URI=\"" + m3u8Ts.getInitSegmentUri() + "\"" + ",BYTERANGE=\"" + m3u8Ts.getSegmentByteRange() + "\"";
                     } else {
                         initSegmentInfo = "URI=\"" + m3u8Ts.getInitSegmentUri() + "\"";
@@ -385,28 +367,13 @@ public class M3U8Utils {
                     bfw.write(M3U8Constants.TAG_INIT_SEGMENT + ":" + initSegmentInfo + "\n");
                 }
                 if (m3u8Ts.hasKey()) {
-                    if (m3u8Ts.getMethod() != null) {
+                    if (!XDownUtils.isEmpty(m3u8Ts.getMethod())) {
                         try {
                             String key = "METHOD=" + m3u8Ts.getMethod();
-                            if (m3u8Ts.getKeyUri() != null) {
+                            if (!XDownUtils.isEmpty(m3u8Ts.getKeyUri())) {
                                 String keyUri = m3u8Ts.getKeyUri();
                                 key += ",URI=\"" + keyUri + "\"";
-                                URL keyURL = new URL(keyUri);
-                                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(keyURL.openStream()));
-                                StringBuilder textBuilder = new StringBuilder();
-                                String line;
-                                while ((line = bufferedReader.readLine()) != null) {
-                                    textBuilder.append(line);
-                                }
-                                boolean isMessyStr = XDownUtils.isMessyCode(textBuilder.toString());
-                                m3u8Ts.setIsMessyKey(isMessyStr);
-
-                                File keyFile = new File(tempDir, m3u8Ts.getLocalKeyUri());
-                                FileOutputStream outputStream = new FileOutputStream(keyFile);
-                                outputStream.write(textBuilder.toString().getBytes());
-                                bufferedReader.close();
-                                outputStream.close();
-                                if (m3u8Ts.getKeyIV() != null) {
+                                if (!XDownUtils.isEmpty(m3u8Ts.getKeyIV())) {
                                     key += ",IV=" + m3u8Ts.getKeyIV();
                                 }
                             }

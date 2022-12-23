@@ -2,6 +2,7 @@ package com.x.down.m3u8;
 
 import com.x.down.tool.XDownUtils;
 
+import java.io.File;
 import java.io.Serializable;
 
 
@@ -17,7 +18,6 @@ public class M3U8Ts implements Comparable<M3U8Ts>, Serializable {
     private String mMethod;                      //加密的方式
     private String mKeyUri;                      //加密的url
     private String mKeyIV;                       //加密的IV
-    private boolean mIsMessyKey;                 //当前加密key是否是乱码
     private long mInitSegmentLength;             //MAP的url的Length
     private boolean mHasInitSegment;             //分片前是否有#EXT-X-MAP
     private String mInitSegmentUri;              //MAP的url
@@ -70,6 +70,10 @@ public class M3U8Ts implements Comparable<M3U8Ts>, Serializable {
         return "local_" + mIndex + ".key";
     }
 
+    public File getKeyFile(File dir) {
+        return new File(dir, getLocalKeyUri());
+    }
+
     public String getKeyIV() {
         return mKeyIV;
     }
@@ -103,6 +107,10 @@ public class M3U8Ts implements Comparable<M3U8Ts>, Serializable {
         return "m3u8_" + mIndex + suffixName;
     }
 
+    public File getTsFile(File dir) {
+        return new File(dir, getIndexName());
+    }
+
     public long getTsSize() {
         return mTsSize;
     }
@@ -113,14 +121,6 @@ public class M3U8Ts implements Comparable<M3U8Ts>, Serializable {
 
     public boolean hasDiscontinuity() {
         return mHasDiscontinuity;
-    }
-
-    public void setIsMessyKey(boolean isMessyKey) {
-        mIsMessyKey = isMessyKey;
-    }
-
-    public boolean isMessyKey() {
-        return mIsMessyKey;
     }
 
     public long getInitSegmentLength() {
@@ -147,8 +147,13 @@ public class M3U8Ts implements Comparable<M3U8Ts>, Serializable {
         String suffixName = "";
         String fileName = XDownUtils.getUrlName(mInitSegmentUri).toLowerCase();
         suffixName = XDownUtils.getSuffixName(fileName);
-        return "temp_m3u8_" + mIndex + suffixName;
+        return "init_segment_" + mIndex + suffixName;
     }
+
+    public File getInitSegmentFile(File dir) {
+        return new File(dir, getInitSegmentName());
+    }
+
 
     @Override
     public String toString() {
@@ -164,7 +169,6 @@ public class M3U8Ts implements Comparable<M3U8Ts>, Serializable {
                 ", mMethod='" + mMethod + '\'' +
                 ", mKeyUri='" + mKeyUri + '\'' +
                 ", mKeyIV='" + mKeyIV + '\'' +
-                ", mIsMessyKey=" + mIsMessyKey +
                 ", mInitSegmentLength=" + mInitSegmentLength +
                 ", mHasInitSegment=" + mHasInitSegment +
                 ", mInitSegmentUri='" + mInitSegmentUri + '\'' +

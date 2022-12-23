@@ -8,7 +8,6 @@ import com.x.down.impl.DownloadListenerDisposer;
 import com.x.down.impl.ProgressDisposer;
 import com.x.down.impl.SpeedDisposer;
 import com.x.down.listener.OnDownloadConnectListener;
-import com.x.down.listener.OnMergeFileListener;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
@@ -148,17 +147,13 @@ final class MultiDownloadDisposer implements OnDownloadConnectListener {
                         XDownUtils.closeIo(inputStream);
                     }
                 }
-                OnMergeFileListener listener = task.request().getOnMegerFileListener();
-                if (listener != null) {
-                    listener.onMerge(file);
-                }
                 listenerDisposer.onComplete(task);
             } catch (Exception e) {
                 listenerDisposer.onFailure(task, e);
             } finally {
                 XDownUtils.closeIo(outputStream);
             }
-        } else {
+        } else if(success.get() > blockCount) {
             listenerDisposer.onFailure(task, new RuntimeException("The downloaded ts is missing!"));
         }
         XDownload.get().removeDownload(request.getTag());

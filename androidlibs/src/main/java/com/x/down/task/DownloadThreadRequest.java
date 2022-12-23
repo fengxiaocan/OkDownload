@@ -13,6 +13,7 @@ import com.x.down.proxy.SerializeProxy;
 import com.x.down.tool.XDownUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -67,16 +68,10 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
             //是否支持断点下载
             acceptRanges = isAcceptRanges(http);
             //获取文件类型后缀
-            final int code = http.getResponseCode();
-            if (!isSuccess(code)) {
-                //获取错误信息
-                String stream = readStringStream(http.getErrorStream(), XDownUtils.getInputCharset(http));
-                listenerDisposer.onRequestError(this, code, stream);
-                //断开请求
-                XDownUtils.disconnectHttp(http);
-                //重试
-                retryToRun(code, stream);
-                return;
+            int responseCode = http.getResponseCode();
+
+            if (!isSuccess(responseCode)) {
+                onHttpError(http, responseCode);
             } else {
                 //先断开请求
                 XDownUtils.disconnectHttp(http);
@@ -100,6 +95,8 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
             }
         }
 
+        checkIsCancel();
+
         //判断执行多线程下载还是单线程下载
         if (acceptRanges && sContentLength > 0 && httpRequest.isUseMultiThread()) {
             multiThreadRun(sContentLength);
@@ -108,7 +105,6 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
             SingleDownloadThreadTask threadTask = new SingleDownloadThreadTask(httpRequest,
                     listenerDisposer,
                     sContentLength);
-            XDownload.get().removeDownload(httpRequest.getTag());
             if (!threadTask.checkComplete()) {
                 Future<?> future = XDownload.executorDownloaderQueue().submit(threadTask);
                 threadTask.setTaskFuture(future);
@@ -117,9 +113,18 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         }
     }
 
+    private void onHttpError(HttpURLConnection http, int responseCode) throws Exception {
+        //获取错误信息
+        String stream = readStringStream(http.getErrorStream(), XDownUtils.getInputCharset(http));
+        listenerDisposer.onRequestError(this, responseCode, stream);
+        //断开请求
+        XDownUtils.disconnectHttp(http);
+        //重试
+        tryToRetry(responseCode, stream);
+    }
+
     @Override
-    public void run() {
-        super.run();
+    protected void completeRun() {
         taskFuture = null;
         XDownload.get().removeDownload(tag());
     }
@@ -137,6 +142,9 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
     @Override
     protected void onCancel() {
         listenerDisposer.onCancel(this);
+        if (threadPoolExecutor != null){
+            threadPoolExecutor.shutdownNow();
+        }
     }
 
     /**
@@ -151,11 +159,11 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
             //isTerminated：当调用shutdownNow()方法后，成功停止后返回为true;
             if (threadPoolExecutor.isShutdown()) {
                 //线程已经开始
-                return;
+                return ;
             }
             if (!threadPoolExecutor.isTerminated()) {
                 //线程已开始并且还没完成
-                return;
+                return ;
             }
         }
         //获取上次配置,决定断点下载不出错
@@ -190,6 +198,8 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         final String filePath = getFilePath();
 
         for (int index = 0; index < threadCount; index++) {
+            checkIsCancel();
+
             start = end + 1;
             final long fileLength;
             if (index == threadCount - 1) {
@@ -217,8 +227,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        XDownload.get().removeDownload(httpRequest.getTag());
-        threadPoolExecutor.shutdown();
+        threadPoolExecutor.shutdownNow();
     }
 
     /**
@@ -267,7 +276,7 @@ final class DownloadThreadRequest extends HttpDownloadRequest implements IDownlo
 
     @Override
     public boolean cancel() {
-        isCancel = true;
+        cancelTask();
         if (taskFuture != null) {
             return taskFuture.cancel(true);
         }

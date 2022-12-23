@@ -49,8 +49,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
     }
 
     @Override
-    public void run() {
-        super.run();
+    protected void completeRun() {
         XDownload.get().removeMultiDownload(tag(), this);
         taskFuture = null;
     }
@@ -65,7 +64,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
                 sofar.set(fileLength);
                 multiDisposer.removeTask(this);
                 multiDisposer.onComplete(this);
-                return;
+                return ;
             } else if (fileSize > fileLength) {
                 tempFile.delete();
                 start = blockStart;
@@ -81,6 +80,9 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
 
         HttpURLConnection http = request.buildConnect();
         http.setRequestProperty("Range", XDownUtils.jsonString("bytes=", start, "-", blockEnd));
+
+        checkIsCancel();
+
         http.connect();
 
         multiDisposer.onConnecting(this, getHeaders(http));
@@ -92,12 +94,13 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
             responseCode = http.getResponseCode();
         }
 
+        checkIsCancel();
+
         if (isSuccess(responseCode)) {
             tempFile.getParentFile().mkdirs();
             FileOutputStream os = new FileOutputStream(tempFile, true);
-            if (!readInputStream(http.getInputStream(), os)) {
-                return;
-            }
+            readInputStream(http.getInputStream(), os);
+
             sofar.set(fileLength);
             multiDisposer.removeTask(this);
             multiDisposer.onComplete(this);
@@ -108,7 +111,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
             multiDisposer.onRequestError(this, responseCode, stream);
 
             XDownUtils.disconnectHttp(http);
-            retryToRun(responseCode,stream);
+            tryToRetry(responseCode, stream);
         }
     }
 
@@ -150,7 +153,7 @@ final class MultiDownloadThreadTask extends HttpDownloadRequest implements Multi
 
     @Override
     public boolean cancel() {
-        isCancel = true;
+        cancelTask();
         if (taskFuture != null) {
             return taskFuture.cancel(true);
         }
