@@ -1,8 +1,8 @@
 package com.app.test;
 
-import com.x.down.m3u8.M3U8Info;
-import com.x.down.m3u8.M3U8Utils;
-import com.x.down.tool.XDownUtils;
+import com.ok.request.info.M3U8Info;
+import com.ok.request.tool.M3U8Utils;
+import com.ok.request.tool.XDownUtils;
 
 import org.junit.Test;
 

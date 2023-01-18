@@ -48,5 +48,5 @@ shadowJar {
 }
 
 dependencies {
-    api fileTree(dir: 'libs', include: ['*.jar'])
+    api project(path: ':core')
 }
