@@ -25,13 +25,12 @@ JavaGUI各平台可视化操作界面[DownloaderGUI.jar](./DownloaderGUI.jar)
 Java中使用方法:
 	
 	//初始化配置
-	XDownload.get()
+	OkDownload
 		.setMaxThreadCount(30);//构建预下载请求任务队列的最大线程数,非下载数
 		.config(XConfig
                 .with(System.getProperty("user.dir"))
                 .defaultName(XConfig.DefaultName.MD5)//默认起名名称,除非自己声明保存文件名
                 // MD5:默认以下载URL MD5起名  TIME:默认以时间戳来命名  ORIGINAL:默认根据下载链接的名称来命名
-                .connectTimeOut(60*1000)//连接超时
                 .isUseAutoRetry(true)//是否使用出错自动重试
                 .autoRetryTimes(500)//自动重试次数
                 .autoRetryInterval(5000)//自动重试间隔毫秒
@@ -52,12 +51,12 @@ Java中使用方法:
                 .build());
 		
 	//发起请求
-	String tag = XDownload.download(url)
+	String tag = OkDownload.download(url)
                .setTag(tag)//设置tag,不设置
                .setSaveFile(saveFile)//设置保存文件路径
                .setCacheDir(cacheDir)//设置下载临时文件的保存地址
                .setDownloadListener()//设置下载完成或失败的监听
-               .setConnectListener()//设置连接请求的监听
+               .setExecuteLisener()//设置连接请求的监听
                .setOnProgressListener()//设置下载进度监听
                .setOnSpeedListener()//设置下载速度监听
                .delect()//删除之前下载的文件
@@ -71,38 +70,38 @@ Java中使用方法:
                .start();
 	       
         //取消下载=暂停下载,恢复下载再走一遍请求逻辑
-        XDownload.get().cancleDownload(tag);
+        OkDownload.cancelExecutor(tag);
 	
 	    //OnSpeedListener:下载速度监听器
 	    //request:下载任务请求 speed:下载速度 time:距离上次回调的时间间隔
-	    void onSpeed(IDownloadRequest request,int speed,int time)
+	    void onSpeed(DownloadExecutor request,int speed,int time)
 
 	    //OnProgressListener:下载进度监听器
-	    void onProgress(IDownloadRequest request,float progress);
+	    void onProgress(DownloadExecutor request,float progress);
 	
 	    //OnDownloadConnectListener:请求连接监听器
 	    //连接上请求
-    	void onConnecting(IDownloadRequest request);
+    	void onStart(DownloadExecutor request);
 	    //请求失败,code为返回码,error为服务器返回错误信息
-    	void onRequestError(IDownloadRequest request,int code,String error);
+    	void onError(DownloadExecutor request,int code,String error);
 	    //下载取消,多线程下载会有多次回调
-    	void onCancel(IDownloadRequest request);
+    	void onCancel(DownloadExecutor request);
 	    //下载出错,正在重试
-    	void onRetry(IDownloadRequest request);
+    	void onRetry(DownloadExecutor request,int retryCount);
 	
 	    //OnDownloadListener:下载结果监听器
 	    //下载完成
-	    void onComplete(IDownloadRequest request);
+	    void onComplete(DownloadExecutor request);
 	    //下载失败
-    	void onFailure(IDownloadRequest request);
+    	void onFailure(DownloadExecutor request);
 
 
 Android中使用方式(其他方法跟Java一致):
 
 	//安卓初始化必须
-	AndroidDownload.init(context.getApplicationContext());
+	OkDownload.init(context.getApplicationContext());
 	
-	AndroidDownload.download(url)
+	OkDownload.download(url)
 		.scheduleOn(AndroidSchedulers.mainThread())//异步回调
 		.start();
 	
