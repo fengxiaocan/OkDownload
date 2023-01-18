@@ -2,6 +2,7 @@ package com.ok.request.core;
 
 import com.ok.request.CoreDownload;
 import com.ok.request.base.Call;
+import com.ok.request.base.DownloadExecutor;
 import com.ok.request.base.HttpDownload;
 import com.ok.request.call.Interceptor;
 import com.ok.request.config.AcquireNameInterceptor;
@@ -501,11 +502,6 @@ public class OkDownloadRequest extends BaseRequest implements HttpDownload, OnDo
     }
 
     @Override
-    public OnDownloadListener downloadListener() {
-        return onDownloadListener;
-    }
-
-    @Override
     public OnProgressListener progressListener() {
         return onProgressListener;
     }
@@ -525,4 +521,37 @@ public class OkDownloadRequest extends BaseRequest implements HttpDownload, OnDo
         return onM3u8ParseIntercept;
     }
 
+    //完成回调
+    public void callDownloadComplete(final DownloadExecutor executor) {
+        //完成回调
+        if (onDownloadListener != null) {
+            if (schedulers != null) {
+                schedulers.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        onDownloadListener.onComplete(executor);
+                    }
+                });
+            } else {
+                onDownloadListener.onComplete(executor);
+            }
+        }
+    }
+
+    //完成回调
+    public void callDownloadFailure(final DownloadExecutor executor) {
+
+        if (onDownloadListener != null) {
+            if (schedulers != null) {
+                schedulers.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        onDownloadListener.onFailure(executor);
+                    }
+                });
+            } else {
+                onDownloadListener.onFailure(executor);
+            }
+        }
+    }
 }

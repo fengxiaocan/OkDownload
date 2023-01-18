@@ -4,12 +4,10 @@ package com.ok.request.down;
 import com.ok.request.base.DownloadExecutor;
 import com.ok.request.call.RequestCall;
 import com.ok.request.core.OkDownloadRequest;
-import com.ok.request.dispatch.Schedulers;
 import com.ok.request.disposer.ProgressDisposer;
 import com.ok.request.disposer.SpeedDisposer;
 import com.ok.request.exception.CancelTaskException;
 import com.ok.request.exception.HttpErrorException;
-import com.ok.request.listener.OnDownloadListener;
 import com.ok.request.request.HttpResponse;
 import com.ok.request.request.Request;
 import com.ok.request.request.Response;
@@ -61,7 +59,7 @@ final class SingleDownloadConnection {
                         sSpeedLength = 0;
                         //复制临时文件到保存文件中
                         cacheFile.renameTo(saveFile);
-                        onComplete();
+                        httpRequest.callDownloadComplete(downloadExecutor);
                         return;
                     } else if (cacheFile.length() > contentLength) {
                         //长度大了
@@ -110,7 +108,7 @@ final class SingleDownloadConnection {
         }
         sSpeedLength = 0;
         //完成回调
-        onComplete();
+        httpRequest.callDownloadComplete(downloadExecutor);
     }
 
     private void writeFile(InputStream is, File cacheFile) throws IOException {
@@ -131,7 +129,6 @@ final class SingleDownloadConnection {
         }
     }
 
-
     private void onProgress(int length) {
         sSofarLength += length;
         sSpeedLength += length;
@@ -142,24 +139,6 @@ final class SingleDownloadConnection {
         if (speedDisposer.isCallSpeed()) {
             speedDisposer.onSpeed(downloadExecutor, sSpeedLength);
             sSpeedLength = 0;
-        }
-    }
-
-    private void onComplete() {
-        //完成回调
-        final OnDownloadListener onDownloadListener = httpRequest.downloadListener();
-        if (onDownloadListener != null) {
-            Schedulers schedulers = httpRequest.schedulers();
-            if (schedulers != null) {
-                schedulers.schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        onDownloadListener.onComplete(downloadExecutor);
-                    }
-                });
-            } else {
-                onDownloadListener.onComplete(downloadExecutor);
-            }
         }
     }
 

@@ -5,7 +5,7 @@ import com.ok.request.core.OkDownloadRequest;
 import com.ok.request.dispatch.Schedulers;
 import com.ok.request.disposer.ProgressDisposer;
 import com.ok.request.disposer.SpeedDisposer;
-import com.ok.request.listener.OnDownloadListener;
+import com.ok.request.listener.OnExecuteListener;
 import com.ok.request.tool.XDownUtils;
 
 import java.io.File;
@@ -21,7 +21,6 @@ final class MultiDownloadDisposer {
 
     private final OkDownloadRequest request;
     private final int blockCount;
-    private final OnDownloadListener onDownloadListener;
     private final ProgressDisposer progressDisposer;
     private final SpeedDisposer speedDisposer;
     private final LinkedList<MultiDownloadBlock> taskList = new LinkedList<>();
@@ -38,7 +37,6 @@ final class MultiDownloadDisposer {
     public MultiDownloadDisposer(OkDownloadRequest request, CountDownLatch countDownLatch,
                                  int blockCount, long totalLength) {
         this.request = request;
-        this.onDownloadListener = request.downloadListener();
 
         final boolean ignoredProgress = request.isIgnoredProgress();
         final int updateProgressTimes = request.getUpdateProgressTimes();
@@ -69,7 +67,7 @@ final class MultiDownloadDisposer {
     }
 
     public void onProgress(DownloadExecutor request, int length) {
-        if (length>0) {
+        if (length > 0) {
             speedLength.addAndGet(length);
             if (progressDisposer.isCallProgress()) {
                 progressDisposer.onProgress(request, totalLength, getSofarLength());
@@ -99,7 +97,13 @@ final class MultiDownloadDisposer {
         countDownLatch.countDown();
     }
 
-    public synchronized void onComplete(final DownloadExecutor executor) throws Throwable {
+    public synchronized void onFailure(final DownloadExecutor executor) {
+        if (success.get() < blockCount) {
+            request.callDownloadFailure(executor);
+        }
+    }
+
+    public synchronized void onComplete(final DownloadExecutor executor) {
         success.getAndIncrement();
 
         if (success.get() == blockCount) {
@@ -117,7 +121,7 @@ final class MultiDownloadDisposer {
             byte[] bytes = new byte[1024 * 8];
             FileOutputStream outputStream = null;
             try {
-                outputStream = new FileOutputStream(file,false);
+                outputStream = new FileOutputStream(file, false);
                 for (File tempFile : tempFileList) {
                     FileInputStream inputStream = null;
                     try {
@@ -132,27 +136,34 @@ final class MultiDownloadDisposer {
                         XDownUtils.closeIo(inputStream);
                     }
                 }
-                //完成回调
-                if (onDownloadListener != null) {
-                    Schedulers schedulers = request.schedulers();
-                    if (schedulers != null) {
-                        schedulers.schedule(new Runnable() {
-                            @Override
-                            public void run() {
-                                onDownloadListener.onComplete(executor);
-                            }
-                        });
-                    } else {
-                        onDownloadListener.onComplete(executor);
-                    }
-                }
+                request.callDownloadComplete(executor);
+            } catch (final Throwable e) {
+                callError(executor, e);
+                request.callDownloadFailure(executor);
             } finally {
                 taskList.clear();
                 XDownUtils.closeIo(outputStream);
             }
         } else if (success.get() > blockCount) {
             taskList.clear();
-            throw new RuntimeException("The downloaded ts is failure!");
+            throw new RuntimeException("The Downloaded is failure!");
+        }
+    }
+
+    private void callError(final DownloadExecutor executor, final Throwable e) {
+        final OnExecuteListener listener = request.executor();
+        if (listener != null){
+            Schedulers schedulers = request.schedulers();
+            if (schedulers != null) {
+                schedulers.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        listener.onError(executor, e);
+                    }
+                });
+            } else {
+                listener.onError(executor, e);
+            }
         }
     }
 }

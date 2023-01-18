@@ -60,6 +60,7 @@ public class M3u8DownloadExecutor extends AutoRetryExecutor implements DownloadE
         } else {
             super.onError(e);
         }
+        httpRequest.callDownloadFailure(this);
     }
 
     @Override
@@ -163,6 +164,7 @@ public class M3u8DownloadExecutor extends AutoRetryExecutor implements DownloadE
         //等待下载完成
         try {
             countDownLatch.await();
+            disposer.onFailure(this);
         } catch (InterruptedException e) {
             for (Dispatcher dispatcher : dispatcherList) {
                 dispatcher.cancel();

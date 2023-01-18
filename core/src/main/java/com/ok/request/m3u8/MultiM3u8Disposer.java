@@ -2,12 +2,10 @@ package com.ok.request.m3u8;
 
 import com.ok.request.base.DownloadExecutor;
 import com.ok.request.core.OkDownloadRequest;
-import com.ok.request.dispatch.Schedulers;
 import com.ok.request.disposer.ProgressDisposer;
 import com.ok.request.disposer.SpeedDisposer;
 import com.ok.request.down.MultiDownloadBlock;
 import com.ok.request.info.M3U8Info;
-import com.ok.request.listener.OnDownloadListener;
 import com.ok.request.tool.M3U8Utils;
 
 import java.io.File;
@@ -21,7 +19,6 @@ import java.util.concurrent.locks.ReentrantLock;
 class MultiM3u8Disposer {
 
     private final OkDownloadRequest request;
-    private final OnDownloadListener onDownloadListener;
     private final ProgressDisposer progressDisposer;
     private final SpeedDisposer speedDisposer;
 
@@ -43,7 +40,6 @@ class MultiM3u8Disposer {
         this.request = request;
         this.saveFile = saveFile;
         this.blockCount = m3U8Info.getTsList().size();
-        this.onDownloadListener = request.downloadListener();
         this.countDownLatch = countDownLatch;
         this.m3U8Info = m3U8Info;
 
@@ -72,7 +68,7 @@ class MultiM3u8Disposer {
 
 
     public void onProgress(DownloadExecutor request, int length) {
-        if (length>0) {
+        if (length > 0) {
             speedLength.addAndGet(length);
 
             if (progressDisposer.isCallProgress()) {
@@ -103,7 +99,13 @@ class MultiM3u8Disposer {
         countDownLatch.countDown();
     }
 
-    public void onComplete(final DownloadExecutor executor) throws Exception {
+    public synchronized void onFailure(final DownloadExecutor executor) {
+        if (success.get() < blockCount) {
+            request.callDownloadFailure(executor);
+        }
+    }
+
+    public void onComplete(final DownloadExecutor executor) {
         success.getAndIncrement();
 
         if (success.get() == blockCount) {
@@ -116,29 +118,16 @@ class MultiM3u8Disposer {
             }
             speedLength.set(0);
             try {
-                M3U8Utils.mergeM3u8(executor, request, saveFile, m3U8Info);
-                //完成回调
-                if (onDownloadListener != null) {
-                    Schedulers schedulers = request.schedulers();
-                    if (schedulers != null) {
-                        schedulers.schedule(new Runnable() {
-                            @Override
-                            public void run() {
-                                onDownloadListener.onComplete(executor);
-                            }
-                        });
-                    } else {
-                        onDownloadListener.onComplete(executor);
-                    }
+                if (M3U8Utils.mergeM3u8(executor, request, saveFile, m3U8Info)) {
+                    request.callDownloadComplete(executor);
                 }
             } finally {
                 taskList.clear();
             }
         } else if (success.get() > blockCount) {
             taskList.clear();
-            throw new RuntimeException("The downloaded ts is failure!");
+            throw new RuntimeException("The Downloaded is failure!");
         }
     }
-
 
 }

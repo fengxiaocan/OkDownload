@@ -1,14 +1,11 @@
 package com.ok.request.dispatch;
 
-import com.ok.request.listener.OnDownloadListener;
 import com.ok.request.listener.OnM3u8ParseIntercept;
 import com.ok.request.listener.OnMergeM3u8Listener;
 import com.ok.request.listener.OnProgressListener;
 import com.ok.request.listener.OnSpeedListener;
 
 public interface OnDownloadDispatcher extends OnDispatcher {
-    //下载完成失败监听
-    OnDownloadListener downloadListener();
 
     //下载进度监听
     OnProgressListener progressListener();

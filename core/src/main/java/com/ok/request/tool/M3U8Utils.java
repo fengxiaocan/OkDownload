@@ -3,6 +3,7 @@ package com.ok.request.tool;
 
 import com.ok.request.base.DownloadExecutor;
 import com.ok.request.core.OkDownloadRequest;
+import com.ok.request.dispatch.Schedulers;
 import com.ok.request.info.M3U8Info;
 import com.ok.request.info.M3U8Ts;
 import com.ok.request.listener.OnExecuteListener;
@@ -22,7 +23,7 @@ import java.util.regex.Pattern;
 
 public class M3U8Utils {
 
-    public static void mergeM3u8(DownloadExecutor executor, OkDownloadRequest request, File saveFile, M3U8Info info) {
+    public static boolean mergeM3u8(final DownloadExecutor executor, OkDownloadRequest request, File saveFile, M3U8Info info) {
         File tempDir = XDownUtils.getTempCacheDir2(request);
         File m3u8Dir = request.getM3u8Dir();
         m3u8Dir.getParentFile().mkdirs();
@@ -33,13 +34,30 @@ public class M3U8Utils {
             if (listener != null) {
                 listener.onM3u8Merge(executor, m3u8Dir, info);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            OnExecuteListener listener = request.executor();
-            if (listener != null) {
+            return true;
+        } catch (final Exception e) {
+            callError(executor, request, e);
+            return false;
+        }
+    }
+
+    private static void callError(final DownloadExecutor executor, OkDownloadRequest request, final Exception e) {
+        final OnExecuteListener listener = request.executor();
+        //错误回调
+        Schedulers schedulers = request.schedulers();
+        if (listener != null) {
+            if (schedulers != null) {
+                schedulers.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        listener.onError(executor, e);
+                    }
+                });
+            } else {
                 listener.onError(executor, e);
             }
         }
+        request.callDownloadFailure(executor);
     }
 
     /**

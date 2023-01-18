@@ -4,7 +4,6 @@ package com.ok.request.m3u8;
 import com.ok.request.base.DownloadExecutor;
 import com.ok.request.call.RequestCall;
 import com.ok.request.core.OkDownloadRequest;
-import com.ok.request.dispatch.Schedulers;
 import com.ok.request.disposer.ProgressDisposer;
 import com.ok.request.disposer.SpeedDisposer;
 import com.ok.request.exception.CancelTaskException;
@@ -12,7 +11,6 @@ import com.ok.request.exception.HttpErrorException;
 import com.ok.request.factory.SerializeFactory;
 import com.ok.request.info.M3U8Info;
 import com.ok.request.info.M3U8Ts;
-import com.ok.request.listener.OnDownloadListener;
 import com.ok.request.request.HttpResponse;
 import com.ok.request.request.Request;
 import com.ok.request.request.Response;
@@ -86,8 +84,6 @@ final class SingleDownloadM3u8 {
             downloadTs(call, block.getUrl(), tempM3u8, block, true, length);
         }
 
-        M3U8Utils.mergeM3u8(downloadExecutor, httpRequest, httpRequest.getSaveFile(), m3U8Info);
-
         //处理最后的进度
         if (!progressDisposer.isIgnoredProgress()) {
             progressDisposer.onProgress(downloadExecutor, 1, sofarLength, sofarLength);
@@ -97,8 +93,11 @@ final class SingleDownloadM3u8 {
             speedDisposer.onSpeed(downloadExecutor, speedLength);
         }
         speedLength = 0;
-        //完成回调
-        onComplete();
+
+        if (M3U8Utils.mergeM3u8(downloadExecutor, httpRequest, httpRequest.getSaveFile(), m3U8Info)) {
+            //完成回调
+            httpRequest.callDownloadComplete(downloadExecutor);
+        }
     }
 
     /**
@@ -147,7 +146,7 @@ final class SingleDownloadM3u8 {
         checkIsCancel();
         //开启请求
         Response response = call.process(request);
-        if (!response.isSuccess()){
+        if (!response.isSuccess()) {
             throw new HttpErrorException(response.code(), url, new HttpResponse(response).error());
         }
         final long contentLength = response.body().contentLength();
@@ -177,7 +176,7 @@ final class SingleDownloadM3u8 {
     private void writeFile(InputStream is, File cacheFile) throws IOException {
         FileOutputStream os = null;
         try {
-            os = new FileOutputStream(cacheFile,true);
+            os = new FileOutputStream(cacheFile, true);
             byte[] bytes = new byte[byteArraySize];
             int length;
             while ((length = is.read(bytes)) > 0) {
@@ -203,24 +202,6 @@ final class SingleDownloadM3u8 {
         if (speedDisposer.isCallSpeed()) {
             speedDisposer.onSpeed(downloadExecutor, speedLength);
             speedLength = 0;
-        }
-    }
-
-    private void onComplete() {
-        //完成回调
-        final OnDownloadListener onDownloadListener = httpRequest.downloadListener();
-        if (onDownloadListener != null) {
-            Schedulers schedulers = httpRequest.schedulers();
-            if (schedulers != null) {
-                schedulers.schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        onDownloadListener.onComplete(downloadExecutor);
-                    }
-                });
-            } else {
-                onDownloadListener.onComplete(downloadExecutor);
-            }
         }
     }
 

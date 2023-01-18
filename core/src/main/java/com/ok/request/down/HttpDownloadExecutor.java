@@ -5,14 +5,12 @@ import com.ok.request.base.DownloadExecutor;
 import com.ok.request.call.RequestCall;
 import com.ok.request.core.OkDownloadRequest;
 import com.ok.request.dispatch.Dispatcher;
-import com.ok.request.dispatch.Schedulers;
 import com.ok.request.exception.CancelTaskException;
 import com.ok.request.exception.HttpErrorException;
 import com.ok.request.executor.AutoRetryExecutor;
 import com.ok.request.factory.SerializeFactory;
 import com.ok.request.info.DownInfo;
 import com.ok.request.info.DownloaderBlock;
-import com.ok.request.listener.OnDownloadListener;
 import com.ok.request.request.HttpResponse;
 import com.ok.request.request.Request;
 import com.ok.request.request.Response;
@@ -113,7 +111,6 @@ public class HttpDownloadExecutor extends AutoRetryExecutor implements DownloadE
         }
     }
 
-
     /**
      * 检测是否已经下载完成
      *
@@ -122,7 +119,7 @@ public class HttpDownloadExecutor extends AutoRetryExecutor implements DownloadE
     private boolean checkComplete(boolean acceptRanges) {
         if (contentLength.get() > 0 && saveFile.exists()) {
             if (saveFile.length() == contentLength.get()) {
-                onComplete();
+                httpRequest.callDownloadComplete(this);
                 return true;
             } else if (!acceptRanges || contentLength.get() < saveFile.length()) {
                 saveFile.deleteOnExit();
@@ -207,6 +204,7 @@ public class HttpDownloadExecutor extends AutoRetryExecutor implements DownloadE
         //等待下载完成
         try {
             countDownLatch.await();
+            disposer.onFailure(this);
         } catch (InterruptedException e) {
             for (Dispatcher dispatcher : dispatcherList) {
                 dispatcher.cancel();
@@ -251,22 +249,10 @@ public class HttpDownloadExecutor extends AutoRetryExecutor implements DownloadE
         return new DownloaderBlock(contentLength, blockLength, threadCount);
     }
 
-    private void onComplete() {
-        //完成回调
-        final OnDownloadListener onDownloadListener = httpRequest.downloadListener();
-        if (onDownloadListener != null) {
-            Schedulers schedulers = httpRequest.schedulers();
-            if (schedulers != null) {
-                schedulers.schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        onDownloadListener.onComplete(HttpDownloadExecutor.this);
-                    }
-                });
-            } else {
-                onDownloadListener.onComplete(this);
-            }
-        }
+    @Override
+    protected void onError(Throwable e) {
+        super.onError(e);
+        httpRequest.callDownloadFailure(this);
     }
 
     @Override
