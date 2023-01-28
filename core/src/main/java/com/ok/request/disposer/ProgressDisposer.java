@@ -38,21 +38,19 @@ public final class ProgressDisposer {
     }
 
     public void onProgress(final DownloadExecutor executor, final float progress, final long total, final long sofar) {
-        if (total > 0) {
-            lastTime.set(System.currentTimeMillis());
-            if (listener == null) {
-                return;
-            }
-            if (schedulers != null) {
-                schedulers.schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        listener.onProgress(executor, progress, total, sofar);
-                    }
-                });
-            } else {
-                listener.onProgress(executor, progress, total, sofar);
-            }
+        lastTime.set(System.currentTimeMillis());
+        if (listener == null) {
+            return;
+        }
+        if (schedulers != null) {
+            schedulers.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onProgress(executor, progress, total, sofar);
+                }
+            });
+        } else {
+            listener.onProgress(executor, progress, total, sofar);
         }
     }
 }

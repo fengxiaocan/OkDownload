@@ -37,7 +37,7 @@ public final class SpeedDisposer {
     }
 
     public void onSpeed(final DownloadExecutor executor, final int speed) {
-        if (speed > 0 && onSpeedListener != null) {
+        if (onSpeedListener != null) {
             final int gap = (int) gap();
 
             if (schedulers != null) {
