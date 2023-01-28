@@ -375,6 +375,7 @@ public class M3U8Utils {
     public static void createNetM3U8(File m3u8File, M3U8Info m3U8Info) throws IOException {
         BufferedWriter bfw = null;
         try {
+            m3u8File.getParentFile().mkdirs();
             bfw = new BufferedWriter(new FileWriter(m3u8File, false));
             bfw.write(M3U8Constants.PLAYLIST_HEADER + "\n");
             bfw.write(M3U8Constants.TAG_VERSION + ":" + m3U8Info.getVersion() + "\n");

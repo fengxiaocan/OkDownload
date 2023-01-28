@@ -88,6 +88,7 @@ public class M3u8DownloadExecutor extends AutoRetryExecutor implements M3u8Execu
             throw new ParseException("M3U8 info parse error!",0);
         }
         SerializeFactory.writeM3u8Info(httpRequest, info);
+
         //创建网络文件
         M3U8Utils.createNetM3U8(getM3u8NetFile(), info);
         OnM3u8ParseIntercept intercept = httpRequest.m3u8ParseIntercept();
