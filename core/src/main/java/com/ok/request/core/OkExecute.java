@@ -63,7 +63,7 @@ public class OkExecute implements IExecuteRequest, OnDispatcher {
     }
 
     @Override
-    public OkExecute setExecuteListener(OnExecuteListener executeListener) {
+    public OkExecute setOnExecuteListener(OnExecuteListener executeListener) {
         this.executeListener = executeListener;
         return this;
     }

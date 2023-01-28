@@ -140,5 +140,5 @@ public interface IConnect extends IExecuteRequest{
     IConnect setAutoRetryInterval(int autoRetryInterval);
 
     @Override
-    IConnect setExecuteListener(OnExecuteListener executeListener);
+    IConnect setOnExecuteListener(OnExecuteListener executeListener);
 }

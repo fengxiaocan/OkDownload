@@ -162,7 +162,7 @@ abstract class BaseRequest implements IConnect, OnDispatcher {
     }
 
     @Override
-    public IConnect setExecuteListener(OnExecuteListener executeListener) {
+    public IConnect setOnExecuteListener(OnExecuteListener executeListener) {
         this.onExecuteListener = executeListener;
         return this;
     }

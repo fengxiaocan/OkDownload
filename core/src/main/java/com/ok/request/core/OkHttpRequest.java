@@ -122,8 +122,8 @@ public class OkHttpRequest extends BaseRequest implements HttpConnect {
     }
 
     @Override
-    public HttpConnect setExecuteListener(OnExecuteListener executeListener) {
-        return (HttpConnect) super.setExecuteListener(executeListener);
+    public HttpConnect setOnExecuteListener(OnExecuteListener executeListener) {
+        return (HttpConnect) super.setOnExecuteListener(executeListener);
     }
 
     @Override

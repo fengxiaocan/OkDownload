@@ -58,7 +58,7 @@ public interface HttpConnect extends IConnect {
     HttpConnect setInterceptors(Call.Interceptor interceptor);
 
     @Override
-    HttpConnect setExecuteListener(OnExecuteListener executeListener);
+    HttpConnect setOnExecuteListener(OnExecuteListener executeListener);
 
     /**
      * 设置请求的方式

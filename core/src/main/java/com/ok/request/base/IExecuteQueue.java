@@ -71,5 +71,5 @@ public interface IExecuteQueue extends IExecuteRequest {
     IExecuteQueue scheduleOn(Schedulers schedulers);
 
     @Override
-    IExecuteQueue setExecuteListener(OnExecuteListener executeListener);
+    IExecuteQueue setOnExecuteListener(OnExecuteListener executeListener);
 }

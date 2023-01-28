@@ -17,7 +17,7 @@ public interface IExecuteRequest {
 
     IExecuteRequest scheduleOn(Schedulers schedulers);
 
-    IExecuteRequest setExecuteListener(OnExecuteListener executeListener);
+    IExecuteRequest setOnExecuteListener(OnExecuteListener executeListener);
 
     Dispatcher start();
 }

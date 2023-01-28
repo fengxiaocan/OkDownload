@@ -71,8 +71,8 @@ public class OkExecuteQueue extends OkExecute implements IExecuteQueue {
     }
 
     @Override
-    public OkExecuteQueue setExecuteListener(OnExecuteListener executeListener) {
-        super.setExecuteListener(executeListener);
+    public OkExecuteQueue setOnExecuteListener(OnExecuteListener executeListener) {
+        super.setOnExecuteListener(executeListener);
         return this;
     }
 

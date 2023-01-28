@@ -395,8 +395,8 @@ public class OkDownloadRequest extends BaseRequest implements HttpDownload, OnDo
     }
 
     @Override
-    public HttpDownload setExecuteListener(OnExecuteListener executeListener) {
-        return (HttpDownload) super.setExecuteListener(executeListener);
+    public HttpDownload setOnExecuteListener(OnExecuteListener executeListener) {
+        return (HttpDownload) super.setOnExecuteListener(executeListener);
     }
 
     @Override

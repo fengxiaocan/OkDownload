@@ -118,7 +118,7 @@ public final class OkExecuteRequestQueues implements IExecuteQueue, OnDispatcher
     }
 
     @Override
-    public IExecuteQueue setExecuteListener(OnExecuteListener executeListener) {
+    public IExecuteQueue setOnExecuteListener(OnExecuteListener executeListener) {
         this.executeListener = executeListener;
         return this;
     }

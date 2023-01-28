@@ -261,5 +261,5 @@ public interface HttpDownload extends IConnect {
     HttpDownload setInterceptors(Call.Interceptor interceptor);
 
     @Override
-    HttpDownload setExecuteListener(OnExecuteListener executeListener);
+    HttpDownload setOnExecuteListener(OnExecuteListener executeListener);
 }
