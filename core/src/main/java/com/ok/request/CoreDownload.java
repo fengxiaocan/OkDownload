@@ -5,7 +5,6 @@ import com.ok.request.base.HttpConnect;
 import com.ok.request.base.HttpDownload;
 import com.ok.request.base.IExecuteQueue;
 import com.ok.request.base.IExecuteRequest;
-import com.ok.request.base.Logger;
 import com.ok.request.config.Config;
 import com.ok.request.config.XConfig;
 import com.ok.request.core.LoopWork;
@@ -232,17 +231,6 @@ public class CoreDownload extends ExecutorGather {
      */
     public static boolean checkExecute(Object tag) {
         return poolMap.containsKey(tag);
-    }
-
-    /**
-     * 检测是否有任务请求
-     * @return
-     */
-    public static void checkExecute() {
-        Logger.logE("poolMap=" + poolMap.size());
-        for (Object key : poolMap.keySet()) {
-            Logger.logE("poolMap="+key);
-        }
     }
 
     public static void deleteCache() {
