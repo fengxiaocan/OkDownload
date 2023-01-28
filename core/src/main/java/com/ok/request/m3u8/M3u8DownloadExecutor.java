@@ -1,7 +1,7 @@
 package com.ok.request.m3u8;
 
 import com.ok.request.CoreDownload;
-import com.ok.request.base.DownloadExecutor;
+import com.ok.request.base.M3u8Executor;
 import com.ok.request.call.RequestCall;
 import com.ok.request.core.OkDownloadRequest;
 import com.ok.request.dispatch.Dispatcher;
@@ -33,7 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import javax.net.ssl.SSLProtocolException;
 
-public class M3u8DownloadExecutor extends AutoRetryExecutor implements DownloadExecutor {
+public class M3u8DownloadExecutor extends AutoRetryExecutor implements M3u8Executor {
     final AtomicReference<String> currentURL = new AtomicReference<>("");
     private final OkDownloadRequest httpRequest;
     private final RequestCall httpCall = new RequestCall();
@@ -65,6 +65,7 @@ public class M3u8DownloadExecutor extends AutoRetryExecutor implements DownloadE
 
     @Override
     protected void onExecute() throws Throwable {
+        currentURL.set(null);
         //是否需要使用多线程
         final boolean usedMultiThread = httpRequest.isUsedMultiThread();
         //检测是否完成
@@ -287,4 +288,8 @@ public class M3u8DownloadExecutor extends AutoRetryExecutor implements DownloadE
         return httpRequest.getSaveFile();
     }
 
+    @Override
+    public String m3u8URL() {
+        return currentURL.get();
+    }
 }

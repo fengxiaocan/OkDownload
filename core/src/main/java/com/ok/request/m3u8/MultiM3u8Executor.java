@@ -3,6 +3,7 @@ package com.ok.request.m3u8;
 
 import com.ok.request.CoreDownload;
 import com.ok.request.base.DownloadExecutor;
+import com.ok.request.base.M3u8Executor;
 import com.ok.request.call.RequestCall;
 import com.ok.request.core.OkDownloadRequest;
 import com.ok.request.down.MultiDownloadBlock;
@@ -28,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import javax.net.ssl.SSLProtocolException;
 
-final class MultiM3u8Executor extends AutoRetryExecutor implements MultiDownloadBlock, DownloadExecutor {
+final class MultiM3u8Executor extends AutoRetryExecutor implements MultiDownloadBlock, M3u8Executor {
     private final MultiM3u8Disposer multiDisposer;
     private final OkDownloadRequest httpRequest;
     private final M3U8Ts m3U8Ts;
@@ -96,7 +97,7 @@ final class MultiM3u8Executor extends AutoRetryExecutor implements MultiDownload
     protected void onExecute() throws Throwable {
         sofarSeg.set(0);
         sofarTs.set(0);
-
+        currentURL.set(null);
         File tempCacheDir = XDownUtils.getTempCacheDir(httpRequest);
 
         if (m3U8Ts.hasKey()) {
@@ -245,5 +246,10 @@ final class MultiM3u8Executor extends AutoRetryExecutor implements MultiDownload
     @Override
     public File saveFile() {
         return saveFile;
+    }
+
+    @Override
+    public String m3u8URL() {
+        return currentURL.get();
     }
 }
