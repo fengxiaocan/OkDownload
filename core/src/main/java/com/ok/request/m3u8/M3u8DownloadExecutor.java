@@ -70,6 +70,8 @@ public class M3u8DownloadExecutor extends AutoRetryExecutor implements M3u8Execu
         final boolean usedMultiThread = httpRequest.isUsedMultiThread();
         //检测是否完成
         if (checkComplete()) {
+            //完成回调
+            httpRequest.callDownloadComplete(this);
             return;
         }
         //获取之前的下载信息
