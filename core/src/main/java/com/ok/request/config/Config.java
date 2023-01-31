@@ -11,7 +11,7 @@ public class Config {
 
     public static synchronized XConfig config() {
         if (setting == null) {
-            throw new NullPointerException("请先使用 XDownload.init(context) 初始化");
+            throw new NullPointerException("请先使用 CoreDownload.init() 初始化");
         }
         return setting;
     }
