@@ -15,7 +15,8 @@ Add it in your root build.gradle at the end of repositories:
 Step 2. Add the dependency
 
 	  dependencies {
-	          implementation 'com.github.fengxiaocan:XDownload:v0.1.6'
+	          implementation 'com.github.fengxiaocan.OkDownload:OkDownload:1.2.0'
+	          implementation 'com.github.fengxiaocan.OkDownload:OkDownload-core:1.2.0'
 	  }
   
 jar包下载:[Downloader.jar](./androidlibs/libs/javalib.jar)
