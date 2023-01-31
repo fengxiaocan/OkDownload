@@ -3,6 +3,10 @@
   <component name="CompilerConfiguration">
     <bytecodeTargetLevel target="1.7">
       <module name="javalib" target="1.7" />
+      <module name="OkDownload.androidlibs" target="11" />
+      <module name="OkDownload.javalib" target="11" />
+      <module name="OkDownload.javalib.main" target="11" />
+      <module name="OkDownload.javalib.test" target="11" />
       <module name="XDownload.androidlibs" target="11" />
       <module name="XDownload.app" target="11" />
       <module name="XDownload.javalib" target="11" />

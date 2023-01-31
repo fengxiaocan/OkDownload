@@ -1,3 +1,2 @@
-include ':androidlibs', ':javalib'
-rootProject.name='XDownload'
-include ':core'
+include ':core',':androidlibs', ':javalib'
+rootProject.name='OkDownload'
