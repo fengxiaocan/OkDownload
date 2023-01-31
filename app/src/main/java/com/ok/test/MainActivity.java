@@ -33,6 +33,11 @@ public class MainActivity extends AppCompatActivity {
                     public void onComplete(DownloadExecutor request) {
 
                     }
+
+                    @Override
+                    public void onFailure(DownloadExecutor request) {
+
+                    }
                 }).start();
 
 //        XDownload.execute(new Execute() {
